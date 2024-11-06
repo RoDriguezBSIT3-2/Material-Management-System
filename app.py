@@ -949,7 +949,7 @@ def delete_purchase(purchase_id):
 
 @app.route('/logout')
 def logout():
-    return redirect (url_for('http://127.0.0.1:5000')
+    return "Logged out"
 
 
 if __name__ == '__main__':
