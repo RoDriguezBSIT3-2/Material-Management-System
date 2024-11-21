@@ -38,6 +38,7 @@
             <th>Sales/Outgoing</th>
             <th>Waste</th>
             <th>Ending</th>
+            <th>Image</th>
         </tr>
     </thead>
     <tbody>
@@ -51,6 +52,13 @@
                 <td>{{ item['outgoing'] }}</td>
                 <td>{{ item['waste'] }}</td>
                 <td>{{ item['ending'] }}</td>
+                <td>
+                {% if item['image_url'] %}
+                    <img src="{{ item['image_url'] }}" alt="{{ item['item'] }}" class="item-image" onclick="openImageModal('{{ item['image_url'] }}')">
+                {% else %}
+                    No Image
+                {% endif %}
+            </td>
             </tr>
             {% endfor %}
         {% else %}
@@ -60,6 +68,14 @@
         {% endif %}
     </tbody>
 </table>
+
+<!-- Image Modal for viewing large images -->
+<div id="imageModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <img id="modalImage" src="" alt="Inventory Image" class="modal-image">
+    </div>
+</div>
 
 <style>
 
@@ -141,6 +157,26 @@
 </style>
 
 <script>
+// Image Modal logic
+var imageModal = document.getElementById("imageModal");
+var modalImage = document.getElementById("modalImage");
+var closeImageModalButton = document.getElementsByClassName("close-button")[0];
+
+function openImageModal(imageUrl) {
+    modalImage.src = imageUrl;
+    imageModal.style.display = "block";
+}
+
+closeImageModalButton.addEventListener("click", function() {
+    imageModal.style.display = "none";
+});
+
+// Close modal when clicking outside the modal content
+window.addEventListener("click", function(event) {
+    if (event.target == imageModal) {
+        imageModal.style.display = "none";
+    }
+});
      $(document).ready(function() {
     // Initialize the DataTable
     const table = $('.inventory-table').DataTable({
