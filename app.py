@@ -27,8 +27,8 @@ class Inventory(db.Model):
     outgoing = db.Column(db.Integer, nullable=False)
     waste = db.Column(db.Integer, nullable=False)
     ending = db.Column(db.Integer, nullable=False)
-
     date = db.Column(db.String(50), nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
 
     def __repr__(self):
         return f"<Inventory {self.item}>"
@@ -129,8 +129,9 @@ def dashboard():
 
 @app.route('/api/inventory_summary', methods=['GET'])
 def get_inventory_summary():
-    # Query item, ending, and price fields from each record
-    inventory_data = Inventory.query.with_entities(Inventory.item, Inventory.ending, Inventory.price).all()
+    # Query item, ending, price, id, and image_url fields from each record
+    inventory_data = Inventory.query.with_entities(Inventory.id, Inventory.item, Inventory.ending, Inventory.price,
+                                                   Inventory.image_url).all()
 
     # Format the data with stock status
     data = []
@@ -141,19 +142,19 @@ def get_inventory_summary():
         elif record.ending <= 10:
             status = "Low Stock"
 
-        # Append the item data with status and price
         data.append({
+            'id': record.id,
             'item': record.item,
             'ending': record.ending,
             'price': record.price,
-            'status': status
+            'status': status,
+            'image_url': record.image_url
         })
 
     # Return the data as JSON
     return jsonify(data)
 
-
-@app.route('/inventory', methods=['GET', 'POST'])
+@app.route('/inventory', methods=['GET'])
 def inventory():
     search_query = request.args.get('search', '').strip().lower()
     if search_query:
@@ -167,15 +168,11 @@ def inventory():
 
     # Check for items that are below the threshold and add to alerts
     for item in filtered_inventory:
-        try:
-            # Trigger an alert if the stock level is below or equal to the threshold
-            if item.ending <= stock_threshold:
-                alerts.append({
-                    'item': item.item,
-                    'current_stock': item.ending
-                })
-        except ValueError:
-            print(f"Error: The 'ending' value for item {item.item} is not a valid number.")
+        if item.ending <= stock_threshold:
+            alerts.append({
+                'item': item.item,
+                'current_stock': item.ending
+            })
 
     date_today = datetime.now().strftime('%d %B %Y')
 
@@ -217,6 +214,15 @@ def add_inventory():
         # Automatically calculate the ending balance
         ending = beginning + incoming - outgoing - waste
 
+        # Handle file upload
+        image = request.files.get('image')
+        image_url = ''
+        if image:
+            image_filename = secure_filename(image.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+            image.save(image_path)
+            image_url = url_for('uploaded_file', filename=image_filename)
+
         new_item = Inventory(
             item=item,
             price=price,
@@ -226,12 +232,17 @@ def add_inventory():
             outgoing=outgoing,
             waste=waste,
             ending=ending,
-            date=datetime.now().strftime('%d %B %Y')
+            date=datetime.now().strftime('%d %B %Y'),
+            image_url=image_url
         )
+
+        # Add to the database and commit
         db.session.add(new_item)
         db.session.commit()
 
         return redirect(url_for('inventory'))
+
+    return render_template('add_inventory.html')
 
 
 @app.route('/edit_inventory/<int:item_id>', methods=['GET', 'POST'])
@@ -240,23 +251,27 @@ def edit_inventory(item_id):
 
     if request.method == 'POST':
         item.item = request.form['item']
-        price = float(request.form['price'])
+        item.price = float(request.form['price'])
         item.uoi = request.form['uoi']
-        beginning = int(request.form['beginning'])
-        incoming = int(request.form['incoming'])
-        outgoing = int(request.form['outgoing'])
-        waste = int(request.form['waste'])
+        item.beginning = int(request.form['beginning'])
+        item.incoming = int(request.form['incoming'])
+        item.outgoing = int(request.form['outgoing'])
+        item.waste = int(request.form['waste'])
 
         # Automatically calculate the ending balance
-        item.ending = beginning + incoming - outgoing - waste
+        item.ending = item.beginning + item.incoming - item.outgoing - item.waste
 
-        item.beginning = beginning
-        item.price = price  # Save price
-        item.incoming = incoming
-        item.outgoing = outgoing
-        item.waste = waste
+        # Handle file upload
+        image = request.files.get('image')
+        if image:
+            image_filename = secure_filename(image.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+            image.save(image_path)
+            item.image_url = url_for('uploaded_file', filename=image_filename)
 
+        # Commit the changes to the database
         db.session.commit()
+
         return redirect(url_for('inventory'))
 
     return jsonify({
@@ -268,7 +283,8 @@ def edit_inventory(item_id):
         'incoming': item.incoming,
         'outgoing': item.outgoing,
         'waste': item.waste,
-        'ending': item.ending
+        'ending': item.ending,
+        'image_url': item.image_url
     })
 
 
