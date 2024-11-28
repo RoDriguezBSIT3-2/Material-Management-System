@@ -141,9 +141,7 @@ def dashboard():
     ]
 
     # Fetch fast-moving items (example: outgoing is high)
-    page = 1  # Example page number
-    per_page = 5  # Items per page
-    fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).paginate(page=page, per_page=per_page).items
+   fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).limit(6).all()
 
 
     # Prepare data for charts
