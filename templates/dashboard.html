@@ -73,7 +73,13 @@
                             <tr>
                                 <td>{{ item.item }}</td>
                                 <td>{{ item.ending }}</td>
-                                <td>5</td>
+                                <td>
+                                    {% if item.reorder_level > 0 %}
+                                         {{ item.reorder_level }}
+                                    {% else %}
+                                        ---
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
