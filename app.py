@@ -130,8 +130,15 @@ def dashboard():
         func.sum(Inventory.price * Inventory.ending).label('total_value')
     ).scalar() or 0
 
-    # Fetch low stock alerts
-    low_stock_alerts = Inventory.query.filter(Inventory.ending <= 10).all()
+    # Fetch low stock alerts with calculated reorder levels
+    low_stock_alerts = [
+        {
+            'item': item.item,
+            'ending': item.ending,
+            'reorder_level': max(0, 20 - item.ending)  # Calculate reorder level to reach 20
+        }
+        for item in Inventory.query.filter(Inventory.ending <= 10).all()
+    ]
 
     # Fetch fast-moving items (example: outgoing is high)
     fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).limit(5).all()
@@ -155,6 +162,7 @@ def dashboard():
         inventory_chart_data=inventory_chart_data,
         fast_moving_chart_data=fast_moving_chart_data,
     )
+
 
 @app.route('/api/inventory_summary', methods=['GET'])
 def get_inventory_summary():
