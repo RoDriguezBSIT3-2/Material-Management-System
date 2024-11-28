@@ -124,8 +124,36 @@ with app.app_context():
 
 @app.route('/')
 def dashboard():
-    return render_template('dashboard.html')
+    # Fetch total inventory value
+    total_inventory_value = db.session.query(
+        func.sum(Inventory.price * Inventory.ending).label('total_value')
+    ).scalar() or 0
 
+    # Fetch low stock alerts
+    low_stock_alerts = Inventory.query.filter(Inventory.ending <= 5).all()
+
+    # Fetch fast-moving items (example: outgoing is high)
+    fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).limit(5).all()
+
+    # Prepare data for charts
+    inventory_chart_data = {
+        'labels': [item.item for item in Inventory.query.all()],
+        'data': [item.ending for item in Inventory.query.all()],
+    }
+
+    fast_moving_chart_data = {
+        'labels': [item.item for item in fast_moving_items],
+        'data': [item.outgoing for item in fast_moving_items],
+    }
+
+    return render_template(
+        'dashboard.html',
+        total_inventory_value=total_inventory_value,
+        low_stock_alerts=low_stock_alerts,
+        fast_moving_items=fast_moving_items,
+        inventory_chart_data=inventory_chart_data,
+        fast_moving_chart_data=fast_moving_chart_data,
+    )
 
 @app.route('/api/inventory_summary', methods=['GET'])
 def get_inventory_summary():
