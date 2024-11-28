@@ -141,8 +141,7 @@ def dashboard():
     ]
 
     # Fetch fast-moving items (example: outgoing is high)
-   fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).limit(5).all()
-
+    fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).limit(5).all()
 
     # Prepare data for charts
     inventory_chart_data = {
