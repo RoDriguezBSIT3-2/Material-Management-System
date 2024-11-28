@@ -131,7 +131,7 @@ def dashboard():
     ).scalar() or 0
 
     # Fetch low stock alerts
-    low_stock_alerts = Inventory.query.filter(Inventory.ending <= 5).all()
+    low_stock_alerts = Inventory.query.filter(Inventory.ending <= 10).all()
 
     # Fetch fast-moving items (example: outgoing is high)
     fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).limit(5).all()
