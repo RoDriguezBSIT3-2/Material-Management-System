@@ -34,7 +34,17 @@ class Inventory(db.Model):
     def __repr__(self):
         return f"<Inventory {self.item}>"
 
-
+class Transactions(db.Model):
+    __tablename__ = 'transactions'
+    id = db.Column(db.Integer, primary_key=True)
+    item = db.Column(db.String(100), nullable=False)
+    uoi = db.Column(db.String(50), nullable=False)
+    date = db.Column(db.String(50), nullable=False)
+    time = db.Column(db.String(50), nullable=False)
+    transaction_type = db.Column(db.String(50), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    stock = db.Column(db.Integer, nullable=False)
+    
 # Define PurchaseRecord model
 class PurchaseRecord(db.Model):
     __tablename__ = 'purchase_records'
@@ -331,6 +341,91 @@ def delete_inventory(item_id):
     db.session.delete(item)
     db.session.commit()
     return redirect(url_for('inventory'))
+
+@app.route('/transactions', methods=['GET'])
+def inventory_transactions():
+    search_query = request.args.get('search', '').strip().lower()
+    if search_query:
+        filtered_transactions = Transactions.query.filter(Transactions.item.ilike(f'%{search_query}%')).all()
+    else:
+        filtered_transactions = Transactions.query.all()
+
+    date_today = datetime.now().strftime('%d %B %Y')
+
+    return render_template('inventory_transactions.html',
+                           transactions=filtered_transactions,
+                           date_today=date_today)
+
+
+@app.route('/add_transaction', methods=['GET', 'POST'])
+def add_transaction():
+    if request.method == 'POST':
+        # Extract form data
+        item = request.form['item']
+        uoi = request.form['uoi']
+        date = request.form['date']
+        time = request.form['time']
+        transaction_type = request.form['transaction_type']
+        quantity = int(request.form['quantity'])
+        stock = int(request.form['stock'])
+
+        # Create new transaction
+        new_transaction = Transactions(
+            item=item,
+            uoi=uoi,
+            date=date,
+            time=time,
+            transaction_type=transaction_type,
+            quantity=quantity,
+            stock=stock
+        )
+
+        # Add to the database and commit
+        db.session.add(new_transaction)
+        db.session.commit()
+
+        return redirect(url_for('inventory_transactions'))
+
+    return render_template('add_transaction.html')
+
+
+@app.route('/edit_transaction/<int:transaction_id>', methods=['GET', 'POST'])
+def edit_transaction(transaction_id):
+    transaction = Transactions.query.get_or_404(transaction_id)
+
+    if request.method == 'POST':
+        # Update transaction details
+        transaction.item = request.form['item']
+        transaction.uoi = request.form['uoi']
+        transaction.date = request.form['date']
+        transaction.time = request.form['time']
+        transaction.transaction_type = request.form['transaction_type']
+        transaction.quantity = int(request.form['quantity'])
+        transaction.stock = int(request.form['stock'])
+
+        # Commit the changes to the database
+        db.session.commit()
+
+        return redirect(url_for('inventory_transactions'))
+
+    return jsonify({
+        'id': transaction.id,
+        'item': transaction.item,
+        'uoi': transaction.uoi,
+        'date': transaction.date,
+        'time': transaction.time,
+        'transaction_type': transaction.transaction_type,
+        'quantity': transaction.quantity,
+        'stock': transaction.stock
+    })
+
+
+@app.route('/delete_transaction/<int:transaction_id>', methods=['POST'])
+def delete_transaction(transaction_id):
+    transaction = Transactions.query.get_or_404(transaction_id)
+    db.session.delete(transaction)
+    db.session.commit()
+    return redirect(url_for('inventory_transactions'))
 
 
 # Define the path to store uploaded images
