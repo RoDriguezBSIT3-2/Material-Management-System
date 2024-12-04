@@ -90,7 +90,7 @@
                     <input type="time" id="time" name="time" required>
                 </div>
                 <div class="form-group">
-                    <label for="transaction_type">TransactionType:</label>
+                    <label for="transaction_type">Transaction Type:</label>
                     <select id="transaction_type" name="transaction_type" required>
                         <option value="" disabled selected>Select Transaction Type</option>
                         <option value="Sales">Sales</option>
@@ -117,7 +117,7 @@
 </div>
 
 <!-- Edit Transaction Modal -->
-<div id="editTransactionModal" class="modal">
+<div id="editTransactionModal" class="modal" style="display: none;">
     <div class="modal-content">
         <span class="close-button">&times;</span>
         <h1 class="page-title">Edit Transaction</h1>
@@ -167,37 +167,42 @@
 </div>
 
 <script>
-    // Add Modal logic
-    var addModal = document.getElementById("addTransactionModal");
-    var openAddModalButton = document.getElementById("openAddModalButton");
-    var closeAddModalButton = document.getElementsByClassName("close-button")[0];
-    var cancelAddButton = document.getElementById("closeAddModalButton");
+    // Add and Edit Modal Logic
+    const addModal = document.getElementById("addTransactionModal");
+    const editModal = document.getElementById("editTransactionModal");
 
-    openAddModalButton.addEventListener("click", function () {
-        addModal.style.display = "block";
-    });
+    // Close buttons
+    const addModalCloseButton = addModal.querySelector(".close-button");
+    const editModalCloseButton = editModal.querySelector(".close-button");
 
-    closeAddModalButton.addEventListener("click", function () {
-        addModal.style.display = "none";
-    });
+    // Open/Close Modal Functions
+    const toggleModal = (modal, action) => {
+        modal.style.display = action === 'open' ? 'block' : 'none';
+    };
 
-    cancelAddButton.addEventListener("click", function () {
-        addModal.style.display = "none";
-    });
+    // Event listeners for Add Modal
+    document.getElementById("openAddModalButton").onclick = () => toggleModal(addModal, 'open');
+    document.getElementById("cancelAddModalButton").onclick = () => toggleModal(addModal, 'close');
+    addModalCloseButton.onclick = () => toggleModal(addModal, 'close');
 
-    // Edit Modal logic
-    var editModal = document.getElementById("editTransactionModal");
-    var closeEditModalButton = document.getElementsByClassName("close-button")[1];
-    var cancelEditButton = document.getElementById("closeEditModalButton");
+    // Event listeners for Edit Modal
+    document.getElementById("closeEditModalButton").onclick = () => toggleModal(editModal, 'close');
+    editModalCloseButton.onclick = () => toggleModal(editModal, 'close');
 
-    function openEditModal(transactionId) {
-    editModal.style.display = "block";
+    // Close modals when clicking outside the modal content
+    window.onclick = (e) => {
+        if (e.target === addModal) toggleModal(addModal, 'close');
+        if (e.target === editModal) toggleModal(editModal, 'close');
+    };
 
-    // Fetch the transaction data and populate the form
-    fetch(`/edit_transaction/${transactionId}`)
-        .then(response => response.json())
-        .then(data => {
-            // Populate form fields with data
+    // Function to open the Edit Modal and load data
+    async function openEditModal(transactionId) {
+        toggleModal(editModal, 'open');
+        try {
+            const response = await fetch(`/edit_transaction/${transactionId}`);
+            if (!response.ok) throw new Error('Failed to fetch transaction data');
+            const data = await response.json();
+
             document.getElementById('editItem').value = data.item || '';
             document.getElementById('editUoi').value = data.uoi || '';
             document.getElementById('editDate').value = data.date || '';
@@ -206,42 +211,22 @@
             document.getElementById('editQuantity').value = data.quantity || '';
             document.getElementById('editStock').value = data.stock || '';
 
-            // Update the form action URL
             document.getElementById('editTransactionForm').action = `/edit_transaction/${transactionId}`;
-        })
-        .catch(error => {
-            console.error('Error fetching transaction data:', error);
-            alert('Failed to load transaction data.');
-        });
-}
-
-
-    closeEditModalButton.addEventListener("click", function () {
-        editModal.style.display = "none";
-    });
-
-    cancelEditButton.addEventListener("click", function () {
-        editModal.style.display = "none";
-    });
-
-    // Close modals when clicking outside
-    window.addEventListener("click", function (event) {
-        if (event.target == addModal) {
-            addModal.style.display = "none";
+        } catch (error) {
+            alert('Error loading data.');
+            console.error(error);
         }
-        if (event.target == editModal) {
-            editModal.style.display = "none";
-        }
-    });
+    }
 
-    // Search auto-submit
+
+    document.getElementById("closeEditModalButton").onclick = () => toggleModal(editModal, 'close');
+
+     // Search auto-submit
     const searchInput = document.querySelector('.search-box');
     searchInput.addEventListener('input', function () {
         if (searchInput.value.trim() === '') {
             document.getElementById('search-form').submit();
         }
     });
-
 </script>
-
 {% endblock %}
