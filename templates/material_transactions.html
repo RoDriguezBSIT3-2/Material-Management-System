@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="page-title">Material Transactions</h1>
+
+<nav class="inventory-nav">
+    <a href="{{ url_for('material') }}" class="nav-button">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+    <a class="nav-button" id="openAddModalButton">
+        <i class="fas fa-plus-circle"></i> Add Material Transaction
+    </a>
+</nav>
+
+<div class="inventory-info">
+    <p><b class="highlight-date">{{ date_today }}</b></p>
+    <div class="search-box-container">
+        <form id="search-form" action="{{ url_for('material_transactions') }}" method="GET">
+            <input type="text" name="search" class="search-box" placeholder="Search" value="{{ request.args.get('search', '') }}">
+            <button type="submit" class="search-button">Search</button>
+        </form>
+    </div>
+</div>
+
+<table class="inventory-table">
+    <thead>
+        <tr>
+            <th>Material</th>
+            <th>(UOI)</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Transaction Type</th>
+            <th>Quantity</th>
+            <th>Stock</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if transactions %}
+            {% for transaction in transactions %}
+            <tr>
+                <td>{{ transaction.material }}</td>
+                <td>{{ transaction.uoi }}</td>
+                <td>{{ transaction.date }}</td>
+                <td>{{ transaction.time }}</td>
+                <td>{{ transaction.transaction_type }}</td>
+                <td>{{ transaction.quantity }}</td>
+                <td>{{ transaction.stock }}</td>
+                <td class="actions">
+                    <button type="button" class="edit" aria-label="Edit" onclick="openEditModal('{{ transaction.id }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <form action="{{ url_for('delete_material_transaction', transaction_id=transaction.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="delete" onclick="return confirm('Are you sure you want to delete this transaction?');" aria-label="Delete">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+        <tr>
+            <td colspan="8" style="text-align: center;">No transactions found. Click "Add Material Transaction" to get started.</td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+<!-- Add Material Transaction Modal -->
+<div id="addTransactionModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <h1 class="page-title">Add Material Transaction</h1>
+        <form action="{{ url_for('add_material_transaction') }}" method="POST" class="add-transaction-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="material">Material:</label>
+                    <input type="text" id="material" name="material" required>
+                </div>
+                <div class="form-group">
+                    <label for="uoi">UOI:</label>
+                    <input type="text" id="uoi" name="uoi" required>
+                </div>
+                <div class="form-group">
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="time">Time:</label>
+                    <input type="time" id="time" name="time" required>
+                </div>
+                <div class="form-group">
+                    <label for="transaction_type">Transaction Type:</label>
+                    <select id="transaction_type" name="transaction_type" required>
+                        <option value="" disabled selected>Select Transaction Type</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Waste">Waste</option>
+                        <option value="Incoming">Incoming</option>
+                        <option value="Received">Received</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity:</label>
+                    <input type="number" id="quantity" name="quantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="stock">Stock:</label>
+                    <input type="number" id="stock" name="stock" min="0" step="1" required>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-button">Save</button>
+                <button type="button" class="cancel-button" id="cancelAddModalButton">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Material Transaction Modal -->
+<div id="editTransactionModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <h1 class="page-title">Edit Material Transaction</h1>
+        <form id="editTransactionForm" action="" method="POST" class="edit-transaction-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="editMaterial">Material:</label>
+                    <input type="text" id="editMaterial" name="material" required>
+                </div>
+                <div class="form-group">
+                    <label for="editUoi">UOI:</label>
+                    <input type="text" id="editUoi" name="uoi" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDate">Date:</label>
+                    <input type="date" id="editDate" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTime">Time:</label>
+                    <input type="time" id="editTime" name="time" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTransactionType">Transaction Type:</label>
+                    <select id="editTransactionType" name="transaction_type" required>
+                        <option value="" disabled selected>Select Transaction Type</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Waste">Waste</option>
+                        <option value="Incoming">Incoming</option>
+                        <option value="Received">Received</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editQuantity">Quantity:</label>
+                    <input type="number" id="editQuantity" name="quantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="editStock">Stock:</label>
+                    <input type="number" id="editStock" name="stock" min="0" step="1" required>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-button">Save</button>
+                <button type="button" class="cancel-button" id="closeEditModalButton">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Add and Edit Modal Logic
+    const addModal = document.getElementById("addTransactionModal");
+    const editModal = document.getElementById("editTransactionModal");
+
+    // Close buttons
+    const addModalCloseButton = addModal.querySelector(".close-button");
+    const editModalCloseButton = editModal.querySelector(".close-button");
+
+    // Open/Close Modal Functions
+    const toggleModal = (modal, action) => {
+        modal.style.display = action === 'open' ? 'block' : 'none';
+    };
+
+    // Event listeners for Add Modal
+    document.getElementById("openAddModalButton").onclick = () => toggleModal(addModal, 'open');
+    document.getElementById("cancelAddModalButton").onclick = () => toggleModal(addModal, 'close');
+    addModalCloseButton.onclick = () => toggleModal(addModal, 'close');
+
+    // Event listeners for Edit Modal
+    document.getElementById("closeEditModalButton").onclick = () => toggleModal(editModal, 'close');
+    editModalCloseButton.onclick = () => toggleModal(editModal, 'close');
+
+    // Close modals when clicking outside the modal content
+    window.onclick = (e) => {
+        if (e.target === addModal) toggleModal(addModal, 'close');
+        if (e.target === editModal) toggleModal(editModal, 'close');
+    };
+
+      // Function to open the Edit Modal and load data
+    async function openEditModal(transactionId) {
+        toggleModal(editModal, 'open');
+        try {
+            const response = await fetch(`/edit_material_transaction/${transactionId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch transaction data');
+
+            const data = await response.json();
+
+            // Populate modal fields with fetched data
+            document.getElementById('editMaterial').value = data.material || '';
+            document.getElementById('editUoi').value = data.uoi || '';
+            document.getElementById('editDate').value = data.date || '';
+            document.getElementById('editTime').value = data.time || '';
+            document.getElementById('editTransactionType').value = data.transaction_type || '';
+            document.getElementById('editQuantity').value = data.quantity || '';
+            document.getElementById('editStock').value = data.stock || '';
+
+            // Update the form action to the correct endpoint
+            document.getElementById('editTransactionForm').action = `/edit_material_transaction/${transactionId}`;
+        } catch (error) {
+            alert('Error loading transaction data.');
+            console.error(error);
+            toggleModal(editModal, 'close'); // Close the modal in case of an error
+        }
+    }
+
+
+
+    // Search auto-submit
+    const searchInput = document.querySelector('.search-box');
+    searchInput.addEventListener('input', function () {
+        if (searchInput.value.trim() === '') {
+            document.getElementById('search-form').submit();
+        }
+    });
+</script>
+{% endblock %}
