@@ -39,8 +39,8 @@ class Transactions(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item = db.Column(db.String(100), nullable=False)
     uoi = db.Column(db.String(50), nullable=False)
-    date = db.Column(db.String(50), nullable=False)
-    time = db.Column(db.String(50), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    time = db.Column(db.Time, nullable=False)
     transaction_type = db.Column(db.String(50), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=False)
@@ -125,8 +125,8 @@ class Order(db.Model):
     order_id = db.Column(db.String(50), unique=True, nullable=False)
     prepared_by = db.Column(db.String(50))
     checked_by = db.Column(db.String(50))
-    date = db.Column(db.String(50))
-    time = db.Column(db.String(50))
+    date = db.Column(db.Date)
+    time = db.Column(db.Time)
     store_branch = db.Column(db.String(100))
     status = db.Column(db.String(50))
     wet_items = db.Column(db.JSON)
@@ -999,11 +999,6 @@ def view_order(order_id):
         return "Order not found", 404
     return render_template('view_order.html', order=order)
 
-
-@app.route('/commissary')
-def commissary():
-    date_today = datetime.now().strftime('%d %B %Y')
-    return render_template('commissary.html', date_today=date_today)
 
 
 @app.route('/purchase_records')
