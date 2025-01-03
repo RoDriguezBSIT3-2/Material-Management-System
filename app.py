@@ -999,7 +999,22 @@ def view_order(order_id):
         return "Order not found", 404
     return render_template('view_order.html', order=order)
 
+@app.route('/order_history', methods=['GET'])
+def order_history():
+    date = request.args.get('date')
 
+    if date:
+        try:
+            search_date = datetime.strptime(date, '%Y-%m-%d').strftime('%d %B %Y')
+        except ValueError:
+            search_date = None
+    else:
+        search_date = datetime.now().strftime('%d %B %Y')
+
+    filtered_orders = Order.query.filter_by(date=search_date).all()
+
+    return render_template('order_history.html', orders=filtered_orders,
+                           date_today=datetime.now().strftime('%Y-%m-%d'))
 
 @app.route('/purchase_records')
 def purchase_records():
@@ -1195,7 +1210,13 @@ def delete_purchase(purchase_id):
 
     return redirect(url_for('purchase_records'))
 
-
+@app.route('/view_record', methods=['GET'])
+def view_record():
+    date = request.args.get('date')
+    search_date = datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d') if date else datetime.now().strftime('%Y-%m-%d')
+    records = PurchaseRecord.query.filter_by(date=search_date).all()
+    return render_template('view_record.html', record_details=records, date_today=datetime.now().strftime('%Y-%m-%d'))
+    
 @app.route('/logout')
 def logout():
     return "Logged out"
