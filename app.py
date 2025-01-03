@@ -187,14 +187,15 @@ def dashboard():
 
 @app.route('/api/inventory_summary', methods=['GET'])
 def get_inventory_summary():
-    # Query item, ending, price, id, image_url, and uoi fields from each record
+    # Query item, ending, price, id, image_url, uoi, and date fields from each record
     inventory_data = Inventory.query.with_entities(
-        Inventory.id, 
-        Inventory.item, 
-        Inventory.ending, 
+        Inventory.id,
+        Inventory.item,
+        Inventory.ending,
         Inventory.price,
-        Inventory.image_url, 
-        Inventory.uoi
+        Inventory.image_url,
+        Inventory.uoi,
+        Inventory.date  # Include the date field
     ).all()
 
     # Format the data with stock status
@@ -213,11 +214,13 @@ def get_inventory_summary():
             'price': record.price,
             'status': status,
             'image_url': record.image_url,
-            'uoi': record.uoi  
+            'uoi': record.uoi,  # Add unit of issue to the output
+            'date': record.date  # Include date in the output
         })
 
     # Return the data as JSON
     return jsonify(data)
+
 
 
 @app.route('/inventory', methods=['GET'])
