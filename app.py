@@ -1019,6 +1019,19 @@ def order_history():
     return render_template('order_history.html', orders=filtered_orders,
                            date_today=datetime.now().strftime('%Y-%m-%d'))
 
+@app.route('/edit_order_status/<string:order_id>', methods=['POST'])
+def edit_order_status(order_id):
+    # Fetch the order based on the order_id
+    order = Order.query.filter_by(order_id=order_id).first()
+    if order:
+        # Update the order status
+        new_status = request.form.get('status')
+        if new_status:
+            order.status = new_status
+            db.session.commit()
+
+    return redirect(url_for('order_report'))
+
 @app.route('/purchase_records')
 def purchase_records():
     date_today = datetime.now().strftime('%d %B %Y')
