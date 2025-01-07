@@ -5,6 +5,7 @@ from sqlalchemy import func
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+import requests
 
 app = Flask(__name__)
 # Configure PostgreSQL Database
