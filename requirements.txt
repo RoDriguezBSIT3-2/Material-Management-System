@@ -6,3 +6,4 @@ Flask-SQLAlchemy
 PyJWT~=2.9.0
 SQLAlchemy~=2.0.35
 psycopg2~=2.9.9
+requests~=2.32.3
