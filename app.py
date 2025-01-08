@@ -238,6 +238,50 @@ def inventory():
     else:
         filtered_inventory = Inventory.query.all()
 
+    # Fetch external orders
+    try:
+        response = requests.get('https://hospitality-pos1.onrender.com/get_orders')
+        if response.status_code == 200:
+            orders_data = response.json()
+            orders = orders_data.get('orders', []) if orders_data.get('success') else []
+        else:
+            orders = []
+    except Exception as e:
+        print(f"Error fetching orders: {e}")
+        orders = []
+
+    # Process orders and update inventory
+    for order in orders:
+        order_id = order.get('order_id')
+
+        for item in order.get('items', []):  # Loop through each item in the order
+            item_name = item.get('item_name')
+            quantity = item.get('quantity', 0)
+
+            # Check if this item in the order has already been processed
+            if ProcessedOrder.query.filter_by(order_id=order_id, item=item_name).first():
+                continue
+
+            # Find the corresponding inventory item
+            inventory_item = Inventory.query.filter_by(item=item_name).first()
+            if inventory_item:
+                # Update the outgoing stock
+                inventory_item.outgoing += quantity
+
+                # Recalculate the ending balance
+                inventory_item.ending = (
+                        inventory_item.beginning + inventory_item.incoming
+                        - inventory_item.outgoing - inventory_item.waste
+                )
+
+                # Commit inventory changes
+                db.session.commit()
+
+            # Mark this item in the order as processed
+            processed_order = ProcessedOrder(order_id=order_id, item=item_name)
+            db.session.add(processed_order)
+            db.session.commit()
+
     # Define the threshold for stock levels
     stock_threshold = 10
     alerts = []
