@@ -554,25 +554,28 @@
     document.addEventListener('DOMContentLoaded', function () {
         const notificationContainer = document.querySelector('.notification-container');
         const dropdown = document.querySelector('.notification-dropdown');
-
-        // Toggle dropdown visibility on icon click
-        notificationContainer.addEventListener('click', function (event) {
-            event.stopPropagation(); // Prevent click from propagating to document
-            dropdown.classList.toggle('show');
-        });
-
-        // Ensure dropdown doesn't close when clicked inside
-        dropdown.addEventListener('click', function (event) {
-            event.stopPropagation();
-        });
-
-        // Hide dropdown when clicking outside
-        document.addEventListener('click', function () {
-            if (dropdown.classList.contains('show')) {
-                dropdown.classList.remove('show');
-            }
-        });
+    
+        if (notificationContainer && dropdown) {
+            // Toggle dropdown visibility on icon click
+            notificationContainer.addEventListener('click', function (event) {
+                event.stopPropagation(); // Prevent click from propagating to document
+                dropdown.classList.toggle('show');
+            });
+    
+            // Ensure dropdown doesn't close when clicked inside
+            dropdown.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+    
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function () {
+                if (dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        }
     });
+
 
 
 
