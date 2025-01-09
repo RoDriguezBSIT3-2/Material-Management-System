@@ -11,7 +11,7 @@
         <div class="col-md-4">
             <div class="card text-white bg-primary">
                 <div class="card-body">
-                    <h5 class="card-title">Total Inventory Value</h5>
+                    <h5 class="card-title"> <i class="fas fa-boxes"> </i> Total Inventory Value</h5>
                     <p class="card-text" id="totalInventoryValue">₱{{ total_inventory_value | round(2) }}</p>
                 </div>
             </div>
@@ -19,7 +19,7 @@
         <div class="col-md-4">
             <div class="card text-white bg-danger">
                 <div class="card-body">
-                    <h5 class="card-title">Low Stock Alerts</h5>
+                    <h5 class="card-title"> <i class="fas fa-exclamation-triangle"> </i> Low Stock Alerts</h5>
                     <p class="card-text" id="lowStockAlerts">{{ low_stock_alerts|length }} Items</p>
                 </div>
             </div>
@@ -27,7 +27,7 @@
         <div class="col-md-4">
             <div class="card text-white bg-success">
                 <div class="card-body">
-                    <h5 class="card-title">Fast-Moving Items</h5>
+                    <h5 class="card-title"> <i class="fas fa-chart-line"> </i> Fast-Moving Items</h5>
                     <p class="card-text" id="fastMovingItems">{{ fast_moving_items|length }} Items</p>
                 </div>
             </div>
@@ -38,7 +38,7 @@
     <div class="row mt-4">
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header bg-primary text-white">Inventory Overview</div>
+                <div class="card-header bg-primary text-white">  <i class="fas fa-clipboard-list"> </i> Inventory Overview</div>
                 <div class="card-body chart-container">
                     <canvas id="inventoryChart"></canvas>
                 </div>
@@ -46,7 +46,7 @@
         </div>
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header bg-success text-white">Fast-Moving Items</div>
+                <div class="card-header bg-success text-white"> <i class="fas fa-chart-line"> </i> Fast-Moving Items</div>
                 <div class="card-body chart-container">
                     <canvas id="fastMovingChart"></canvas>
                 </div>
@@ -58,7 +58,7 @@
     <div class="row mt-4">
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header bg-danger text-white">Low Stock Alerts</div>
+                <div class="card-header bg-danger text-white"> <i class="fas fa-exclamation-triangle"> </i> Low Stock Alerts</div>
                 <div class="card-body table-container">
                     <table class="table table-striped">
                         <thead>
@@ -92,7 +92,7 @@
         <!-- Fast-Moving Items Table -->
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header bg-success text-white">Fast-Moving Items</div>
+                <div class="card-header bg-success text-white"> <i class="fas fa-chart-line"> </i> Fast-Moving Items</div>
                 <div class="card-body table-container">
                     <table class="table table-striped">
                         <thead>
