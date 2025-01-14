@@ -229,7 +229,6 @@ def get_inventory_summary():
     return jsonify(data)
 
 
-
 @app.route('/inventory', methods=['GET'])
 def inventory():
     search_query = request.args.get('search', '').strip().lower()
@@ -250,7 +249,12 @@ def inventory():
         print(f"Error fetching orders: {e}")
         orders = []
 
+    # Fetch existing processed orders and transactions
+    processed_orders = {f"{po.order_id}-{po.item}" for po in ProcessedOrder.query.all()}
+    existing_transactions = {(t.item, t.transaction_type, t.date): t for t in Transactions.query.all()}
+
     # Process orders and update inventory
+    new_transactions = []
     for order in orders:
         order_id = order.get('order_id')
 
@@ -259,44 +263,75 @@ def inventory():
             quantity = item.get('quantity', 0)
 
             # Check if this item in the order has already been processed
-            if ProcessedOrder.query.filter_by(order_id=order_id, item=item_name).first():
+            if f"{order_id}-{item_name}" in processed_orders:
                 continue
 
             # Find the corresponding inventory item
             inventory_item = Inventory.query.filter_by(item=item_name).first()
             if inventory_item:
-                # Update the outgoing stock
                 inventory_item.outgoing += quantity
-
-                # Recalculate the ending balance
                 inventory_item.ending = (
                         inventory_item.beginning + inventory_item.incoming
                         - inventory_item.outgoing - inventory_item.waste
                 )
 
-                # Commit inventory changes
-                db.session.commit()
+                # Log the Sales transaction
+                if (item_name, 'sales', datetime.now().strftime('%Y-%m-%d')) not in existing_transactions:
+                    new_transactions.append(Transactions(
+                        item=item_name,
+                        uoi=inventory_item.uoi,
+                        date=datetime.now().strftime('%Y-%m-%d'),
+                        time=datetime.now().strftime('%H:%M:%S'),
+                        transaction_type='sales',
+                        quantity=quantity,
+                        stock=inventory_item.ending
+                    ))
 
             # Mark this item in the order as processed
-            processed_order = ProcessedOrder(order_id=order_id, item=item_name)
-            db.session.add(processed_order)
-            db.session.commit()
+            db.session.add(ProcessedOrder(order_id=order_id, item=item_name))
+
+    # Log Incoming, Waste, and Outgoing stock with deduplication
+    for inventory_item in filtered_inventory:
+        for tx_type in ['incoming', 'waste', 'outgoing']:
+            quantity = getattr(inventory_item, tx_type, 0)
+            if quantity > 0:
+                # Check if a similar transaction already exists
+                existing_transaction = Transactions.query.filter_by(
+                    item=inventory_item.item,
+                    uoi=inventory_item.uoi,
+                    transaction_type=tx_type,
+                    date=datetime.now().strftime('%Y-%m-%d'),
+                    quantity=quantity,
+                    stock=inventory_item.ending
+                ).first()
+
+                # If no duplicate found, add the transaction
+                if not existing_transaction:
+                    transaction = Transactions(
+                        item=inventory_item.item,
+                        uoi=inventory_item.uoi,
+                        date=datetime.now().strftime('%Y-%m-%d'),
+                        time=datetime.now().strftime('%H:%M:%S'),
+                        transaction_type=tx_type,
+                        quantity=quantity,
+                        stock=inventory_item.ending
+                    )
+                    db.session.add(transaction)
+
+    # Commit all transaction logs at once
+    db.session.commit()
 
     # Define the threshold for stock levels
     stock_threshold = 10
-    alerts = []
-
-    # Check for items that are below the threshold and add to alerts
-    for item in filtered_inventory:
-        if item.ending <= stock_threshold:
-            alerts.append({
-                'item': item.item,
-                'current_stock': item.ending
-            })
+    alerts = [
+        {'item': item.item, 'current_stock': item.ending}
+        for item in filtered_inventory if item.ending <= stock_threshold
+    ]
 
     date_today = datetime.now().strftime('%d %B %Y')
 
     return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today, alerts=alerts)
+
 
 
 @app.route('/view_inventory', methods=['GET'])
@@ -428,77 +463,6 @@ def inventory_transactions():
     return render_template('inventory_transactions.html',
                            transactions=filtered_transactions,
                            date_today=date_today)
-
-
-@app.route('/add_transaction', methods=['GET', 'POST'])
-def add_transaction():
-    if request.method == 'POST':
-        # Extract form data
-        item = request.form['item']
-        uoi = request.form['uoi']
-        date = request.form['date']
-        time = request.form['time']
-        transaction_type = request.form['transaction_type']
-        quantity = int(request.form['quantity'])
-        stock = int(request.form['stock'])
-
-        # Create new transaction
-        new_transaction = Transactions(
-            item=item,
-            uoi=uoi,
-            date=date,
-            time=time,
-            transaction_type=transaction_type,
-            quantity=quantity,
-            stock=stock
-        )
-
-        # Add to the database and commit
-        db.session.add(new_transaction)
-        db.session.commit()
-
-        return redirect(url_for('inventory_transactions'))
-
-    return render_template('add_transaction.html')
-
-
-@app.route('/edit_transaction/<int:transaction_id>', methods=['GET', 'POST'])
-def edit_transaction(transaction_id):
-    transaction = Transactions.query.get_or_404(transaction_id)
-
-    if request.method == 'POST':
-        # Update transaction details
-        transaction.item = request.form['item']
-        transaction.uoi = request.form['uoi']
-        transaction.date = request.form['date']
-        transaction.time = request.form['time']
-        transaction.transaction_type = request.form['transaction_type']
-        transaction.quantity = int(request.form['quantity'])
-        transaction.stock = int(request.form['stock'])
-
-        # Commit the changes to the database
-        db.session.commit()
-
-        return redirect(url_for('inventory_transactions'))
-
-    return jsonify({
-        'id': transaction.id,
-        'item': transaction.item,
-        'uoi': transaction.uoi,
-        'date': transaction.date,
-        'time': transaction.time,
-        'transaction_type': transaction.transaction_type,
-        'quantity': transaction.quantity,
-        'stock': transaction.stock
-    })
-
-
-@app.route('/delete_transaction/<int:transaction_id>', methods=['POST'])
-def delete_transaction(transaction_id):
-    transaction = Transactions.query.get_or_404(transaction_id)
-    db.session.delete(transaction)
-    db.session.commit()
-    return redirect(url_for('inventory_transactions'))
 
 
 # Define the path to store uploaded images
@@ -636,77 +600,6 @@ def material_transactions():
                            date_today=date_today)
 
 
-@app.route('/add_material_transaction', methods=['GET', 'POST'])
-def add_material_transaction():
-    if request.method == 'POST':
-        # Extract form data
-        material = request.form['material']
-        uoi = request.form['uoi']
-        date = request.form['date']
-        time = request.form['time']
-        transaction_type = request.form['transaction_type']
-        quantity = int(request.form['quantity'])
-        stock = int(request.form['stock'])
-
-        # Create new material transaction
-        new_transaction = MaterialTransactions(
-            material=material,
-            uoi=uoi,
-            date=date,
-            time=time,
-            transaction_type=transaction_type,
-            quantity=quantity,
-            stock=stock
-        )
-
-        # Add to the database and commit
-        db.session.add(new_transaction)
-        db.session.commit()
-
-        return redirect(url_for('material_transactions'))
-
-    return render_template('add_material_transaction.html')
-
-
-@app.route('/edit_material_transaction/<int:transaction_id>', methods=['GET', 'POST'])
-def edit_material_transaction(transaction_id):
-    transaction = MaterialTransactions.query.get_or_404(transaction_id)
-
-    if request.method == 'POST':
-        # Update transaction details
-        transaction.material = request.form['material']
-        transaction.uoi = request.form['uoi']
-        transaction.date = request.form['date']
-        transaction.time = request.form['time']
-        transaction.transaction_type = request.form['transaction_type']
-        transaction.quantity = int(request.form['quantity'])
-        transaction.stock = int(request.form['stock'])
-
-        # Commit the changes to the database
-        db.session.commit()
-
-        return redirect(url_for('material_transactions'))
-
-    return jsonify({
-        'id': transaction.id,
-        'material': transaction.material,
-        'uoi': transaction.uoi,
-        'date': str(transaction.date),
-        'time': str(transaction.time),
-        'transaction_type': transaction.transaction_type,
-        'quantity': transaction.quantity,
-        'stock': transaction.stock
-    })
-
-
-@app.route('/delete_material_transaction/<int:transaction_id>', methods=['POST'])
-def delete_material_transaction(transaction_id):
-    transaction = MaterialTransactions.query.get_or_404(transaction_id)
-    db.session.delete(transaction)
-    db.session.commit()
-    return redirect(url_for('material_transactions'))
-
-
 
 @app.route('/material', methods=['GET', 'POST'])
 def material():
@@ -721,12 +614,42 @@ def material():
     stock_threshold = 10
     alerts = []
 
-    for item in filtered_material:
-        if item.ending <= stock_threshold:
+    for material_item in filtered_material:
+        if material_item.ending <= stock_threshold:
             alerts.append({
-                'item': item.item,
-                'current_stock': item.ending
+                'item': material_item.item,
+                'current_stock': material_item.ending
             })
+
+        # Log Incoming, Waste, and Outgoing transactions with deduplication
+        for tx_type in ['incoming', 'waste', 'outgoing']:
+            quantity = getattr(material_item, tx_type, 0)
+            if quantity > 0:
+                # Check for existing transaction to avoid duplication
+                existing_transaction = MaterialTransactions.query.filter_by(
+                    material=material_item.item,  # Updated from 'item' to 'material'
+                    uoi=material_item.uoi,
+                    transaction_type=tx_type,
+                    date=datetime.now().strftime('%Y-%m-%d'),
+                    quantity=quantity,
+                    stock=material_item.ending
+                ).first()
+
+                # If no duplicate is found, add the new transaction
+                if not existing_transaction:
+                    new_transaction = MaterialTransactions(
+                        material=material_item.item,  # Updated from 'item' to 'material'
+                        uoi=material_item.uoi,
+                        date=datetime.now().strftime('%Y-%m-%d'),
+                        time=datetime.now().strftime('%H:%M:%S'),
+                        transaction_type=tx_type,
+                        quantity=quantity,
+                        stock=material_item.ending
+                    )
+                    db.session.add(new_transaction)
+
+        # Commit all transaction logs at once
+        db.session.commit()
 
     date_today = datetime.now().strftime('%d %B %Y')
 
