@@ -10,7 +10,7 @@
     <a href="{{ url_for('view_material') }}" class="nav-button">
         <i class="fas fa-list-alt"></i> View Material
     </a>
-    <a href="{{ url_for('material_transactions') }}" class="nav-button">
+     <a href="{{ url_for('material_transactions') }}" class="nav-button">
         <i class="fas fa-exchange-alt"></i> Transactions
     </a>
     <a href="{{ url_for('get_material_log') }}" class="nav-button">
@@ -40,17 +40,21 @@
     </div>
 </div>
 
-<!-- Alert Section -->
-{% if alerts %}
-<div class="alert-container">
-    {% for alert in alerts %}
-    <div class="alert">
-        <p><strong>Alert:</strong> Low stock for <b>{{ alert.item }}</b>.</p>
-        <p>Current Stock: <b>{{ alert.current_stock }}</b></p>
-    </div>
-    {% endfor %}
+<div class="nav-button notification-container">
+        <i class="fas fa-bell"></i>
+        {% if alerts|length > 0 %}
+        <span class="notification-count">{{ alerts|length }}</span>
+        <div class="notification-dropdown">
+            <ul>
+                {% for alert in alerts %}
+                <li>
+                    <p><strong>Alert:</strong> Low stock for <b>{{ alert.item }}</b> (Current Stock: {{ alert.current_stock }})</p>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
 </div>
-{% endif %}
 
 <table class="inventory-table">
     <thead>
@@ -182,6 +186,83 @@
 
 
 <style>
+ /* Notification Icon Container */
+    .notification-container {
+        position: fixed; /* Stays fixed at top-right of the viewport */
+        top: 35px;
+        right: 40px;
+        display: inline-block;
+        cursor: pointer;
+        z-index: 1000;
+    }
+
+    /* Notification Badge (Count) */
+    .notification-container .notification-count {
+        position: absolute;
+        top: -5px;
+        right: -15px;
+        background-color: #c8131a;
+        color: white;
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 50%;
+    }
+
+    /* Style for Notification Icon on Hover */
+    .notification-container:hover {
+        color: #c8131a; /* Example: change icon color on hover */
+    }
+
+    /* Dropdown Container */
+    .notification-dropdown {
+        display: none; /* Hidden by default */
+        position: absolute;
+        top: 40px; /* Adjust to align with the icon */
+        right: 0;
+        background-color: white;
+        box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+        z-index: 9999;
+        border-radius: 4px;
+        min-width: 250px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    /* Dropdown Active State */
+    .notification-dropdown.show {
+        display: block;
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Dropdown List Container */
+    .notification-dropdown ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Dropdown List Items */
+    .notification-dropdown ul li {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        transition: background-color 0.3s ease;
+    }
+
+    /* Last List Item */
+    .notification-dropdown ul li:last-child {
+        border-bottom: none;
+    }
+
+    /* Hover State for List Items */
+    .notification-dropdown ul li:hover {
+        background-color: #c8131a;
+        color: white;
+    }
+
+
+
 
     #export-button {
     background-color: #c8131a;
@@ -417,6 +498,30 @@
         }
     });
 });
+    document.addEventListener('DOMContentLoaded', function () {
+        const notificationContainer = document.querySelector('.notification-container');
+        const dropdown = document.querySelector('.notification-dropdown');
+
+        if (notificationContainer && dropdown) {
+            // Toggle dropdown visibility on icon click
+            notificationContainer.addEventListener('click', function (event) {
+                event.stopPropagation(); // Prevent click from propagating to document
+                dropdown.classList.toggle('show');
+            });
+
+            // Ensure dropdown doesn't close when clicked inside
+            dropdown.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function () {
+                if (dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        }
+    });
 
 </script>
 
