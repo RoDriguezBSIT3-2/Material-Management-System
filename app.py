@@ -615,17 +615,17 @@ def material():
     alerts = []
 
     for material_item in filtered_material:
+        # Check stock threshold and prepare alerts
         if material_item.ending <= stock_threshold:
             alerts.append({
                 'item': material_item.item,
                 'current_stock': material_item.ending
             })
-
-        # Log Incoming, Waste, and Outgoing transactions with deduplication
+    
         for tx_type in ['incoming', 'waste', 'outgoing']:
             quantity = getattr(material_item, tx_type, 0)
             if quantity > 0:
-                # Check for existing transaction to avoid duplication
+                # Check if a similar transaction already exists
                 existing_transaction = MaterialTransactions.query.filter_by(
                     material=material_item.item,  # Updated from 'item' to 'material'
                     uoi=material_item.uoi,
@@ -634,8 +634,8 @@ def material():
                     quantity=quantity,
                     stock=material_item.ending
                 ).first()
-
-                # If no duplicate is found, add the new transaction
+    
+                # If no duplicate found, add the transaction
                 if not existing_transaction:
                     new_transaction = MaterialTransactions(
                         material=material_item.item,  # Updated from 'item' to 'material'
@@ -647,9 +647,9 @@ def material():
                         stock=material_item.ending
                     )
                     db.session.add(new_transaction)
-
-        # Commit all transaction logs at once
-        db.session.commit()
+    
+    # Commit all transaction logs at once
+    db.session.commit()
 
     date_today = datetime.now().strftime('%d %B %Y')
 
