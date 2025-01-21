@@ -12,7 +12,7 @@
             <div class="card text-white bg-primary">
                 <div class="card-body">
                     <h5 class="card-title"> <i class="fas fa-boxes"> </i> Total Inventory Value</h5>
-                    <p class="card-text" id="totalInventoryValue">₱{{ total_inventory_value | round(2) }}</p>
+                    <p class="card-text" id="totalInventoryValue">₱{{ '{:,.2f}'.format(total_inventory_value) }}</p>
                 </div>
             </div>
         </div>
