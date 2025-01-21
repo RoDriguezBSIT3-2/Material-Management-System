@@ -30,7 +30,7 @@
     </div>
 </nav>
 
- <div class="nav-button notification-container">
+<div class="nav-button notification-container">
         <i class="fas fa-bell"></i>
         {% if alerts|length > 0 %}
         <span class="notification-count">{{ alerts|length }}</span>
@@ -44,7 +44,11 @@
             </ul>
         </div>
         {% endif %}
- </div>
+</div>
+
+<div id="successMessage" class="alert-success" style="display: none;">
+    Saved Successfully!
+</div>
 
 <div class="inventory-info">
     <p><b class="highlight-date">{{ date_today }}</b></p>
@@ -114,7 +118,7 @@
     <div class="modal-content">
         <span class="close-button">&times;</span>
         <h1 class="page-title">Add Inventory</h1>
-        <form action="{{ url_for('add_inventory') }}" method="POST" class="add-inventory-form" enctype="multipart/form-data">
+        <form id="addInventoryForm" action="{{ url_for('add_inventory') }}" method="POST" class="add-inventory-form" enctype="multipart/form-data">
             <div class="form-row">
                 <div class="form-group">
                     <label for="item">Menus:</label>
@@ -156,6 +160,7 @@
         </form>
     </div>
 </div>
+
 
 <!-- Edit Inventory Modal -->
 <div id="editInventoryModal" class="modal">
@@ -222,9 +227,23 @@
 </div>
 
 <style>
+    .alert-success {
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+
    /* Notification Icon Container */
     .notification-container {
-        position: fixed;
+        position: fixed; /* Stays fixed at top-right of the viewport */
         top: 35px;
         right: 40px;
         display: inline-block;
@@ -232,6 +251,7 @@
         z-index: 1000;
     }
 
+    /* Notification Badge (Count) */
     .notification-container .notification-count {
         position: absolute;
         top: -5px;
@@ -250,9 +270,9 @@
 
     /* Dropdown Container */
     .notification-dropdown {
-        display: none;
+        display: none; /* Hidden by default */
         position: absolute;
-        top: 40px;
+        top: 40px; /* Adjust to align with the icon */
         right: 0;
         background-color: white;
         box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
@@ -295,6 +315,7 @@
         background-color: #c8131a;
         color: white;
     }
+
 
 
     #export-button {
@@ -373,23 +394,45 @@
 </style>
 
 <script>
-    // Add Modal logic
+   // Add Modal logic
     var addModal = document.getElementById("addInventoryModal");
     var openAddModalButton = document.getElementById("openModalButton");
     var closeAddModalButton = document.getElementsByClassName("close-button")[0];
     var cancelAddButton = document.getElementById("closeAddModalButton");
+    var successMessage = document.getElementById("successMessage");
 
+    // Open the modal
     openAddModalButton.addEventListener("click", function() {
         addModal.style.display = "block";
     });
 
+    // Close the modal when clicking the close button
     closeAddModalButton.addEventListener("click", function() {
         addModal.style.display = "none";
     });
 
+    // Close the modal when clicking the cancel button
     cancelAddButton.addEventListener("click", function() {
         addModal.style.display = "none";
     });
+
+    // Handle form submission
+    document.getElementById("addInventoryForm").addEventListener("submit", function() {
+        // Allow the form to be submitted to the server without preventing default behavior
+
+        // Show success message
+        successMessage.style.display = "block";
+
+        // Close the modal
+        addModal.style.display = "none";
+
+        // Hide the success message after 3 seconds
+        setTimeout(function() {
+            successMessage.style.display = "none";
+        }, 3000);
+    });
+
+
 
     // Edit Modal logic
     var editModal = document.getElementById("editInventoryModal");
@@ -554,19 +597,19 @@
     document.addEventListener('DOMContentLoaded', function () {
         const notificationContainer = document.querySelector('.notification-container');
         const dropdown = document.querySelector('.notification-dropdown');
-    
+
         if (notificationContainer && dropdown) {
             // Toggle dropdown visibility on icon click
             notificationContainer.addEventListener('click', function (event) {
                 event.stopPropagation(); // Prevent click from propagating to document
                 dropdown.classList.toggle('show');
             });
-    
+
             // Ensure dropdown doesn't close when clicked inside
             dropdown.addEventListener('click', function (event) {
                 event.stopPropagation();
             });
-    
+
             // Hide dropdown when clicking outside
             document.addEventListener('click', function () {
                 if (dropdown.classList.contains('show')) {
@@ -575,9 +618,6 @@
             });
         }
     });
-
-
-
 
 
 </script>
