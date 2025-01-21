@@ -30,6 +30,10 @@
     </div>
 </nav>
 
+<div id="successMessageMaterial" class="alert-success" style="display: none;">
+    Saved Successfully!
+</div>
+
 <div class="inventory-info">
     <p><b class="highlight-date">{{ date_today }}</b></p>
     <div class="search-box-container">
@@ -101,7 +105,7 @@
     <div class="modal-content">
         <span class="close">&times;</span>
         <h1 class="page-title">Add Material</h1>
-        <form action="{{ url_for('add_material') }}" method="POST" class="add-material-form">
+        <form id="addMaterialForm" action="{{ url_for('add_material') }}" method="POST" class="add-material-form" enctype="multipart/form-data">
             <div class="form-row">
                 <div class="form-group">
                     <label for="item">Items:</label>
@@ -186,6 +190,20 @@
 
 
 <style>
+    .alert-success {
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+
  /* Notification Icon Container */
     .notification-container {
         position: fixed; /* Stays fixed at top-right of the viewport */
@@ -343,29 +361,49 @@
 
 <script>
     // Modal handling for Add Material
-    var modal = document.getElementById("add-material-modal");
-    var modalBtn = document.getElementById("add-material-button");
-    var closeBtn = document.getElementsByClassName("close")[0];
-    var cancelModalBtn = document.getElementById("cancel-modal");
+    var materialModal = document.getElementById("add-material-modal");
+    var openMaterialModalButton = document.getElementById("add-material-button");
+    var closeMaterialModalButton = document.getElementsByClassName("close")[0];
+    var cancelMaterialModalButton = document.getElementById("cancel-modal");
+    var successMessageMaterial = document.getElementById("successMessageMaterial");
 
-    modalBtn.addEventListener("click", openModal);
-    closeBtn.addEventListener("click", closeModal);
-    cancelModalBtn.addEventListener("click", closeModal);
-    window.addEventListener("click", outsideClick);
+    // Open the modal
+    openMaterialModalButton.addEventListener("click", function() {
+        materialModal.style.display = "block";
+    });
 
-    function openModal() {
-        modal.style.display = "block";
-    }
+    // Close the modal when clicking the close button
+    closeMaterialModalButton.addEventListener("click", function() {
+        materialModal.style.display = "none";
+    });
 
-    function closeModal() {
-        modal.style.display = "none";
-    }
+    // Close the modal when clicking the cancel button
+    cancelMaterialModalButton.addEventListener("click", function() {
+        materialModal.style.display = "none";
+    });
 
-    function outsideClick(e) {
-        if (e.target == modal) {
-            modal.style.display = "none";
+    // Close the modal when clicking outside the modal
+    window.addEventListener("click", function(e) {
+        if (e.target == materialModal) {
+            materialModal.style.display = "none";
         }
-    }
+    });
+
+    // Handle form submission
+    document.getElementById("addMaterialForm").addEventListener("submit", function() {
+        // Allow the form to be submitted to the server without preventing default behavior
+
+        // Show success message
+        successMessageMaterial.style.display = "block";
+
+        // Close the modal
+        materialModal.style.display = "none";
+
+        // Hide the success message after 3 seconds
+        setTimeout(function() {
+            successMessageMaterial.style.display = "none";
+        }, 3000);
+    });
 
     // Modal handling for Edit Inventory
     var editModal = document.getElementById("edit-material-modal");
