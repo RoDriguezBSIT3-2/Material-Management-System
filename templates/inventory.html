@@ -546,15 +546,28 @@
                     extend: 'pdf',
                     className: 'hidden-button',
                     exportOptions: {
-                        columns: ':not(:last-child)'
+                        columns: ':not(:last-child):not(:nth-last-child(2))' // Exclude the "Image" column
                     },
                     filename: 'inventory_report',
                     customize: function(doc) {
+                        // Adjust default styles
                         doc.defaultStyle.fontSize = 10;
                         doc.styles.tableHeader.fontSize = 11;
                         doc.styles.title.fontSize = 14;
+                
+                        // Set the title text
                         doc.content[0].text = 'Inventory Report';
-                        doc.content[1].table.widths = Array(doc.content[1].table.body[0].length).fill('*');
+                
+                        // Adjust the table widths dynamically
+                        if (doc.content[1] && doc.content[1].table) {
+                            let tableWidths = doc.content[1].table.body[0].map(() => '*');
+                            doc.content[1].table.widths = tableWidths;
+                        }
+                
+                        // Additional styling for page layout
+                        doc.pageMargins = [20, 60, 20, 30]; // Adjust margins
+                        doc.styles.title.alignment = 'center'; // Center the title
+                        doc.styles.tableHeader.alignment = 'center'; // Center header text
                     }
                 },
                 {
