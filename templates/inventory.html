@@ -542,7 +542,7 @@
                     },
                     filename: 'inventory_report'
                 },
-                {
+               {
                     extend: 'pdf',
                     className: 'hidden-button',
                     exportOptions: {
@@ -554,22 +554,23 @@
                         doc.defaultStyle.fontSize = 10;
                         doc.styles.tableHeader.fontSize = 11;
                         doc.styles.title.fontSize = 14;
-
+                
                         // Set the title text
                         doc.content[0].text = 'Inventory Report';
-
+                
                         // Adjust the table widths dynamically
                         if (doc.content[1] && doc.content[1].table) {
                             let tableWidths = doc.content[1].table.body[0].map(() => '*');
                             doc.content[1].table.widths = tableWidths;
                         }
-
+                
                         // Additional styling for page layout
                         doc.pageMargins = [20, 60, 20, 30]; // Adjust margins
                         doc.styles.title.alignment = 'center'; // Center the title
                         doc.styles.tableHeader.alignment = 'center'; // Center header text
                     }
                 },
+
                 {
                     extend: 'print',
                     className: 'hidden-button',
