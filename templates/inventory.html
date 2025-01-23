@@ -561,7 +561,7 @@
                         // Adjust the table widths dynamically
                         if (doc.content[1] && doc.content[1].table) {
                             let tableWidths = doc.content[1].table.body[0].map(() => '*');
-                            doc.content[1].table.widths = ['20%', '15%', '15%', '15%', '15%', '20%'];
+                            doc.content[1].table.widths = tableWidths;
                         }
 
                         // Additional styling for page layout
