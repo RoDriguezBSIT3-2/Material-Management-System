@@ -354,6 +354,19 @@ def view_inventory():
     return render_template('view_inventory.html', inventory=filtered_inventory,
                            date_today=datetime.now().strftime('%Y-%m-%d'))
 
+@app.route('/validate_item', methods=['POST'])
+def validate_item():
+    data = request.get_json()
+    item_name = data.get('item', '').strip().lower()
+
+    if not item_name:
+        return jsonify({"exists": False, "error": "Item name is required"}), 400
+
+    # Check if the item exists in the Inventory model
+    exists = Inventory.query.filter(Inventory.item.ilike(f'%{item_name}%')).first() is not None
+
+    return jsonify({"exists": exists})
+
 
 @app.route('/add_inventory', methods=['GET', 'POST'])
 def add_inventory():
@@ -675,6 +688,18 @@ def view_material():
     return render_template('view_material.html', material=filtered_material,
                            date_today=datetime.now().strftime('%Y-%m-%d'))
 
+@app.route('/validate_material', methods=['POST'])
+def validate_material():
+    data = request.get_json()
+    material_name = data.get('material', '').strip().lower()  # Clean input
+
+    if not material_name:
+        return jsonify({"exists": False, "error": "Material name is required"}), 400
+
+    # Check if the material exists in the Material table
+    exists = Material.query.filter(Material.item.ilike(f'%{material_name}%')).first() is not None
+
+    return jsonify({"exists": exists})
 
 @app.route('/add_material', methods=['GET', 'POST'])
 def add_material():
