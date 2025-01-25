@@ -389,20 +389,39 @@
         }
     });
 
-    // Handle form submission
-    document.getElementById("addMaterialForm").addEventListener("submit", function() {
-        // Allow the form to be submitted to the server without preventing default behavior
+    // Handle form submission with validation
+    document.getElementById("addMaterialForm").addEventListener("submit", function(event) {
+        event.preventDefault(); // Prevent default submission for validation
 
-        // Show success message
-        successMessageMaterial.style.display = "block";
+        var materialName = document.getElementById("item").value.trim().toLowerCase();
 
-        // Close the modal
-        materialModal.style.display = "none";
+        // Check for duplication
+        fetch("/validate_material", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ material: materialName }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                alert("This material already exists. Please use a different name.");
+            } else {
+                // Allow form submission
+                successMessageMaterial.style.display = "block";
+                materialModal.style.display = "none";
 
-        // Hide the success message after 3 seconds
-        setTimeout(function() {
-            successMessageMaterial.style.display = "none";
-        }, 3000);
+                // Hide the success message after 3 seconds
+                setTimeout(function() {
+                    successMessageMaterial.style.display = "none";
+                }, 3000);
+
+                // Submit the form programmatically
+                document.getElementById("addMaterialForm").submit();
+            }
+        })
+        .catch(error => console.error("Error validating material:", error));
     });
 
     // Modal handling for Edit Inventory
