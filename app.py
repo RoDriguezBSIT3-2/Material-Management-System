@@ -2,7 +2,6 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import os
 from sqlalchemy import func
-from werkzeug.utils import secure_filename
 from flask import send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 import requests
