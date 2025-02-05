@@ -222,40 +222,66 @@ body, html {
     width: 100%;
     border-collapse: collapse;
     margin: 20px 0;
-    table-layout: auto;
+    table-layout: fixed;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 .inventory-table th, .inventory-table td {
     border: 1px solid #333;
     background-color: #fff;
-    padding: 10px;
-    text-align: center;
+    padding: 12px;
     vertical-align: middle;
+    white-space: nowrap;
 }
 
 .inventory-table th {
     background-color: #c8131a;
     color: white;
     border-color: black;
+    text-align: center;
+}
+
+.inventory-table td:first-child {
+    text-align: left; /* Align item names to the left */
+}
+
+.inventory-table td:nth-child(2),
+.inventory-table td:nth-child(3),
+.inventory-table td:nth-child(4),
+.inventory-table td:nth-child(5),
+.inventory-table td:nth-child(6),
+.inventory-table td:nth-child(7) {
+    text-align: right; /* Align numerical values to the right */
+}
+
+.inventory-table td:last-child {
+    text-align: center;
+}
+
+.inventory-table .actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.inventory-table .actions button {
+    background-color: #d00;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.inventory-table .actions button:hover {
+    background-color: #a00;
 }
 
 .inventory-table tr:hover {
     background-color: #f1f1f1;
 }
 
-/* Image Styling inside Table */
-.inventory-table td img {
-    max-width: 150px;  /* Set maximum width for images for good visibility */
-    max-height: 100px; /* Set maximum height to keep images in proportion */
-    width: auto;       /* Ensure width adjusts based on the image aspect ratio */
-    height: auto;      /* Ensure height adjusts based on the image aspect ratio */
-    display: block;    /* Treat the image as a block element */
-    margin: 0 auto;    /* Center the image horizontally */
-    border-radius: 5px; /* Optional: Add rounded corners to images */
-    object-fit: contain; /* Ensures the image fits within the bounds without distortion */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); /* Optional: Adds shadow for a polished look */
-}
+
 
 
 /* Specific Button Styles */
@@ -316,10 +342,7 @@ body, html {
         font-size: 14px;
     }
 
-    .inventory-table td img {
-        max-width: 120px; /* Reduce image size for smaller screens */
-        max-height: 80px;
-    }
+
 }
 
 @media (max-width: 480px) {
@@ -353,10 +376,6 @@ body, html {
         font-size: 24px;
     }
 
-    .inventory-table td img {
-        max-width: 100px; /* Further reduce image size for smaller screens */
-        max-height: 70px;
-    }
 }
 
 /* Icon Styling */
