@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="page-title">Orders</h1>
+
+<nav class="inventory-nav">
+    <a href="#" class="nav-button" onclick="openAddOrderModal()">
+        <i class="fas fa-plus-circle"></i> Add Order
+    </a>
+    <div class="nav-button dropdown" id="export-button">
+        <i class="fas fa-file-export"></i> Export
+        <div class="dropdown-menu" id="export-options">
+            <ul>
+                <li><a href="#" class="export-option" data-type="copy"><i class="fas fa-copy"></i> Copy</a></li>
+                <li><a href="#" class="export-option" data-type="csv"><i class="fas fa-file-csv"></i> CSV</a></li>
+                <li><a href="#" class="export-option" data-type="excel"><i class="fas fa-file-excel"></i> Excel</a></li>
+                <li><a href="#" class="export-option" data-type="pdf"><i class="fas fa-file-pdf"></i> PDF</a></li>
+                <li><a href="#" class="export-option" data-type="print"><i class="fas fa-print"></i> Print</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div id="successMessage" class="alert-success" style="display: none;">
+    Saved Successfully!
+</div>
+
+<div class="inventory-info">
+    <p><b class="highlight-date">{{ date_today }}</b></p>
+    <div class="search-box-container">
+        <form id="search-form" action="{{ url_for('orders_request') }}" method="GET">
+            <input type="text" name="search" class="search-box" placeholder="Search" value="{{ request.args.get('search', '') }}">
+            <button type="submit" class="search-button">Search</button>
+        </form>
+    </div>
+</div>
+
+<table class="inventory-table">
+    <thead>
+        <tr>
+            <th>Items</th>
+            <th>UOI</th>
+            <th>Quantity</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if orders %}
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.item }}</td>
+                <td>{{ order.uoi }}</td>
+                <td>{{ order.quantity }}</td>
+                <td>{{ order.status }}</td>
+                <td>
+                    <button type="button" class="edit" onclick="openEditOrderModal({{ order.id }}, '{{ order.item }}', '{{ order.uoi }}', {{ order.quantity }}, '{{ order.status }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <form action="{{ url_for('delete_orders_request', order_id=order.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="delete" onclick="return confirm('Are you sure you want to delete this order?');">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="5">No orders found.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+<!-- Add Order Modal -->
+<div id="orderModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeAddOrderModal()">&times;</span>
+        <h1 class="page-title">Add Order</h1>
+       <form id="orderForm" action="{{ url_for('add_orders_request') }}" method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="item">Item:</label>
+                    <input type="text" id="item" name="item" required>
+                </div>
+                <div class="form-group">
+                    <label for="uoi">UOI:</label>
+                    <input type="text" id="uoi" name="uoi" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity:</label>
+                    <input type="number" id="quantity" name="quantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="status">Status:</label>
+                    <select id="status" name="status" required>
+                        <option value="" disabled selected>Select</option>
+                        <option value="pending">Pending</option>
+                        <option value="preparing">Preparing</option>
+                        <option value="incomplete">Incomplete</option>
+                        <option value="received">Received</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-button">Save</button>
+                <button type="button" class="cancel-button" id="closeAddModalButton">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Order Modal -->
+<div id="editOrderModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeEditOrderModal()">&times;</span>
+        <h1 class="page-title">Edit Order</h1>
+        <form id="editOrderForm" action="{{ url_for('edit_orders_request', order_id=0) }}" method="POST">
+            <input type="hidden" id="editOrderId" name="order_id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="editItem">Item:</label>
+                    <input type="text" id="editItem" name="item" required>
+                </div>
+                <div class="form-group">
+                    <label for="editUoi">UOI:</label>
+                    <input type="text" id="editUoi" name="uoi" required>
+                </div>
+                <div class="form-group">
+                    <label for="editQuantity">Quantity:</label>
+                    <input type="number" id="editQuantity" name="quantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="editStatus">Status:</label>
+                    <select id="editStatus" name="status" required>
+                        <option value="" disabled selected>Select</option>
+                        <option value="pending">Pending</option>
+                        <option value="preparing">Preparing</option>
+                        <option value="incomplete">Incomplete</option>
+                        <option value="received">Received</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-button">Save</button>
+                <button type="button" class="cancel-button" id="closeEditOrderModal">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .alert-success {
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+
+    #export-button {
+        background-color: #c8131a;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+
+    #export-button:hover {
+        background-color: #c8131a;
+    }
+
+    #export-options {
+        display: none;
+        position: absolute;
+        background-color: white;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        border-radius: 4px;
+        z-index: 1000;
+    }
+
+    .export-option {
+        color: #333;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .export-option:hover {
+        background-color: #f5f5f5;
+        cursor: pointer;
+    }
+
+    .hidden-button {
+        display: none !important;
+    }
+
+    .dataTables_wrapper .dataTables_filter {
+        display: none;
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        margin-top: 15px;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 6px 12px;
+        margin: 0 2px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #c8131a;
+        color: white !important;
+        border-color: #c8131a;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #f5f5f5;
+        color: #333 !important;
+    }
+</style>
+
+<script>
+// Global modal functions
+function openEditOrderModal(id, item, uoi, quantity, status) {
+    // Update form fields
+    document.getElementById('editOrderId').value = id;
+    document.getElementById('editItem').value = item;
+    document.getElementById('editUoi').value = uoi;
+    document.getElementById('editQuantity').value = quantity;
+    document.getElementById('editStatus').value = status;
+
+    // Update form action
+    document.getElementById('editOrderForm').action = `/edit_orders_request/${id}`;
+
+    // Show modal
+    document.getElementById('editOrderModal').style.display = 'block';
+}
+
+function closeEditOrderModal() {
+    document.getElementById('editOrderModal').style.display = 'none';
+}
+
+function openAddOrderModal() {
+    document.getElementById('orderModal').style.display = 'block';
+}
+
+function closeAddOrderModal() {
+    document.getElementById('orderModal').style.display = 'none';
+}
+
+$(document).ready(function() {
+    // Initialize DataTable
+    const table = $(".inventory-table").DataTable({
+        dom: "Bfrtip",
+        buttons: [
+            {
+                extend: "copy",
+                className: "hidden-button",
+                exportOptions: { columns: ":not(:last-child)" }
+            },
+            {
+                extend: "csv",
+                className: "hidden-button",
+                exportOptions: { columns: ":not(:last-child)" },
+                filename: "orders_report"
+            },
+            {
+                extend: "excel",
+                className: "hidden-button",
+                exportOptions: { columns: ":not(:last-child)" },
+                filename: "orders_report"
+            },
+            {
+                extend: "pdf",
+                className: "hidden-button",
+                exportOptions: { columns: ":not(:last-child)" },
+                filename: "orders_report",
+                customize: function(doc) {
+                    doc.defaultStyle.fontSize = 10;
+                    doc.styles.tableHeader.fontSize = 11;
+                    doc.styles.title.fontSize = 14;
+                    doc.content[0].text = "Orders Report";
+                    if (doc.content[1] && doc.content[1].table) {
+                        doc.content[1].table.widths = doc.content[1].table.body[0].map(() => "*");
+                    }
+                    doc.pageMargins = [20, 60, 20, 30];
+                    doc.styles.title.alignment = "center";
+                    doc.styles.tableHeader.alignment = "center";
+                }
+            },
+            {
+                extend: "print",
+                className: "hidden-button",
+                exportOptions: { columns: ":not(:last-child)" },
+                customize: function(win) {
+                    $(win.document.body).find("h1").text("Orders Report");
+                }
+            }
+        ]
+    });
+
+    // Export Functionality
+    $("#export-button").on("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $("#export-options").toggle();
+    });
+
+    $(".export-option").on("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const exportType = $(this).data("type");
+        table.button(`.buttons-${exportType}`).trigger();
+        $("#export-options").hide();
+    });
+
+    // Close dropdown when clicking outside
+    $(document).on("click", function(e) {
+        if (!$(e.target).closest("#export-button").length &&
+            !$(e.target).closest("#export-options").length) {
+            $("#export-options").hide();
+        }
+    });
+
+    // Close modals when clicking cancel buttons
+    $("#closeAddModalButton").on("click", function() {
+        closeAddOrderModal();
+    });
+
+    $("#closeEditOrderModal").on("click", function() {
+        closeEditOrderModal();
+    });
+
+    // Close modal when clicking outside
+    $(window).on("click", function(event) {
+        if ($(event.target).is("#orderModal")) {
+            closeAddOrderModal();
+        }
+        if ($(event.target).is("#editOrderModal")) {
+            closeEditOrderModal();
+        }
+    });
+
+    // Form Submission with Validation
+    $("#orderForm").on("submit", function(event) {
+        event.preventDefault();
+        var itemName = $("#item").val();
+
+        fetch("/validate_item_request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ item: itemName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                alert("This item already exists, Please use a different name.");
+            } else {
+                $("#successMessage").show();
+                setTimeout(function() {
+                    $("#successMessage").hide();
+                }, 3000);
+                $("#orderModal").hide();
+                this.submit();
+            }
+        })
+        .catch(error => console.error("Error validating item:", error));
+    });
+
+    // Search functionality
+    $(".search-box").on("input", function() {
+        if ($(this).val().trim() === "") {
+            $("#search-form").submit();
+        }
+    });
+});
+</script>
+
+{% endblock %}
