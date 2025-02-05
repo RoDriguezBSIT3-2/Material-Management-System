@@ -16,12 +16,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 
+
 # Define Inventory model
 class Inventory(db.Model):
     __tablename__ = 'inventory'
     id = db.Column(db.Integer, primary_key=True)
     item = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Float, nullable=False)
     uoi = db.Column(db.String(50), nullable=False)
     beginning = db.Column(db.Integer, nullable=False)
     incoming = db.Column(db.Integer, nullable=False)
@@ -29,17 +29,19 @@ class Inventory(db.Model):
     waste = db.Column(db.Integer, nullable=False)
     ending = db.Column(db.Integer, nullable=False)
     date = db.Column(db.String(50), nullable=False)
-    image_url = db.Column(db.String(255), nullable=True)
 
     def __repr__(self):
         return f"<Inventory {self.item}>"
+
+
 class ProcessedOrder(db.Model):
     __tablename__ = 'processed_order'
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.String(255), nullable=False)  # Track the order ID
     item = db.Column(db.String(100), nullable=False)  # Track the specific item name
     __table_args__ = (db.UniqueConstraint('order_id', 'item', name='unique_order_item'),)  # Ensure unique pair
-    
+
+
 class Transactions(db.Model):
     __tablename__ = 'transactions'
     id = db.Column(db.Integer, primary_key=True)
@@ -51,6 +53,7 @@ class Transactions(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=False)
 
+
 class MaterialTransactions(db.Model):
     __tablename__ = 'material_transactions'
     id = db.Column(db.Integer, primary_key=True)
@@ -61,7 +64,21 @@ class MaterialTransactions(db.Model):
     transaction_type = db.Column(db.String(20), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=False)
-    
+
+
+class Orders(db.Model):
+    __tablename__ = 'orders'
+    id = db.Column(db.Integer, primary_key=True)
+    item = db.Column(db.String(100), nullable=False)
+    uoi = db.Column(db.String(50), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.String(20), nullable=False, default=datetime.now().strftime('%d %B %Y'))
+
+    def __repr__(self):
+        return f'<Order {self.id} - {self.item}>'
+
+
 # Define PurchaseRecord model
 class PurchaseRecord(db.Model):
     __tablename__ = 'purchase_records'
@@ -109,7 +126,6 @@ class WasteLog(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=True)
     date = db.Column(db.String(50), nullable=False)
-    image_url = db.Column(db.String(255), nullable=True)
 
 
 class MaterialLog(db.Model):
@@ -121,28 +137,6 @@ class MaterialLog(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=True)
     date = db.Column(db.String(50), nullable=False)
-    image_url = db.Column(db.String(255), nullable=True)
-
-
-# Define your models here
-class Order(db.Model):
-    __tablename__ = 'orders'
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.String(50), unique=True, nullable=False)
-    prepared_by = db.Column(db.String(50))
-    checked_by = db.Column(db.String(50))
-    date = db.Column(db.Date)
-    time = db.Column(db.Time)
-    store_branch = db.Column(db.String(100))
-    status = db.Column(db.String(50))
-    wet_items = db.Column(db.JSON)
-    sauce_items = db.Column(db.JSON)
-    ice_cream_items = db.Column(db.JSON)
-    shakes_items = db.Column(db.JSON)
-    vegetables_items = db.Column(db.JSON)
-    packaging_items = db.Column(db.JSON)
-    groceries_items = db.Column(db.JSON)
-    manual_items = db.Column(db.JSON)
 
 
 # Create database tables
@@ -152,10 +146,8 @@ with app.app_context():
 
 @app.route('/')
 def dashboard():
-    # Fetch total inventory value
-    total_inventory_value = db.session.query(
-        func.sum(Inventory.price * Inventory.ending).label('total_value')
-    ).scalar() or 0
+    # Fetch total items in inventory
+    total_items = Inventory.query.count()
 
     # Fetch low stock alerts with calculated reorder levels
     low_stock_alerts = [
@@ -168,7 +160,7 @@ def dashboard():
     ]
 
     # Fetch fast-moving items (example: outgoing is high)
-    fast_moving_items = Inventory.query.order_by(Inventory.outgoing.asc()).limit(6).all()
+    fast_moving_items = Inventory.query.order_by(Inventory.outgoing.desc()).limit(5).all()
 
     # Prepare data for charts
     inventory_chart_data = {
@@ -183,7 +175,7 @@ def dashboard():
 
     return render_template(
         'dashboard.html',
-        total_inventory_value=total_inventory_value,
+        total_items=total_items,  # Replaced total_inventory_value
         low_stock_alerts=low_stock_alerts,
         fast_moving_items=fast_moving_items,
         inventory_chart_data=inventory_chart_data,
@@ -198,8 +190,6 @@ def get_inventory_summary():
         Inventory.id,
         Inventory.item,
         Inventory.ending,
-        Inventory.price,
-        Inventory.image_url,
         Inventory.uoi,
         Inventory.date  # Include the date field
     ).all()
@@ -217,9 +207,7 @@ def get_inventory_summary():
             'id': record.id,
             'item': record.item,
             'ending': record.ending,
-            'price': record.price,
             'status': status,
-            'image_url': record.image_url,
             'uoi': record.uoi,  # Add unit of issue to the output
             'date': record.date  # Include date in the output
         })
@@ -327,10 +315,28 @@ def inventory():
         for item in filtered_inventory if item.ending <= stock_threshold
     ]
 
+    # Automatically reorder items with low stock, targeting a reorder level of 20
+    for item in filtered_inventory:
+        reorder_level = max(0, 20 - item.ending)  # Calculate reorder level to reach 20
+        if reorder_level > 0:
+            # Check if the item already exists in orders
+            existing_order = Orders.query.filter(func.lower(Orders.item) == item.item.lower()).first()
+
+            if not existing_order:
+                # Create a new order for the item with low stock
+                new_order = Orders(
+                    item=item.item,
+                    uoi=item.uoi,
+                    quantity=reorder_level,  # Quantity to reorder to reach a stock of 20
+                    status='pending',  # Pending status for the new order
+                    date=datetime.now().strftime('%d %B %Y')
+                )
+                db.session.add(new_order)
+                db.session.commit()
+
     date_today = datetime.now().strftime('%d %B %Y')
 
     return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today, alerts=alerts)
-
 
 
 @app.route('/view_inventory', methods=['GET'])
@@ -353,6 +359,7 @@ def view_inventory():
     return render_template('view_inventory.html', inventory=filtered_inventory,
                            date_today=datetime.now().strftime('%Y-%m-%d'))
 
+
 @app.route('/validate_item', methods=['POST'])
 def validate_item():
     data = request.get_json()
@@ -371,7 +378,6 @@ def validate_item():
 def add_inventory():
     if request.method == 'POST':
         item = request.form['item']
-        price = float(request.form['price'])
         uoi = request.form['uoi']
         beginning = int(request.form['beginning'])
         incoming = int(request.form['incoming'])
@@ -381,26 +387,15 @@ def add_inventory():
         # Automatically calculate the ending balance
         ending = beginning + incoming - outgoing - waste
 
-        # Handle file upload
-        image = request.files.get('image')
-        image_url = ''
-        if image:
-            image_filename = secure_filename(image.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-            image.save(image_path)
-            image_url = url_for('uploaded_file', filename=image_filename)
-
         new_item = Inventory(
             item=item,
-            price=price,
             uoi=uoi,
             beginning=beginning,
             incoming=incoming,
             outgoing=outgoing,
             waste=waste,
             ending=ending,
-            date=datetime.now().strftime('%d %B %Y'),
-            image_url=image_url
+            date=datetime.now().strftime('%d %B %Y')
         )
 
         # Add to the database and commit
@@ -418,7 +413,6 @@ def edit_inventory(item_id):
 
     if request.method == 'POST':
         item.item = request.form['item']
-        item.price = float(request.form['price'])
         item.uoi = request.form['uoi']
         item.beginning = int(request.form['beginning'])
         item.incoming = int(request.form['incoming'])
@@ -428,14 +422,6 @@ def edit_inventory(item_id):
         # Automatically calculate the ending balance
         item.ending = item.beginning + item.incoming - item.outgoing - item.waste
 
-        # Handle file upload
-        image = request.files.get('image')
-        if image:
-            image_filename = secure_filename(image.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-            image.save(image_path)
-            item.image_url = url_for('uploaded_file', filename=image_filename)
-
         # Commit the changes to the database
         db.session.commit()
 
@@ -444,14 +430,12 @@ def edit_inventory(item_id):
     return jsonify({
         'id': item.id,
         'item': item.item,
-        'price': item.price,
         'uoi': item.uoi,
         'beginning': item.beginning,
         'incoming': item.incoming,
         'outgoing': item.outgoing,
         'waste': item.waste,
-        'ending': item.ending,
-        'image_url': item.image_url
+        'ending': item.ending
     })
 
 
@@ -461,6 +445,7 @@ def delete_inventory(item_id):
     db.session.delete(item)
     db.session.commit()
     return redirect(url_for('inventory'))
+
 
 @app.route('/transactions', methods=['GET'])
 def inventory_transactions():
@@ -475,15 +460,6 @@ def inventory_transactions():
     return render_template('inventory_transactions.html',
                            transactions=filtered_transactions,
                            date_today=date_today)
-
-
-# Define the path to store uploaded images
-UPLOAD_FOLDER = 'uploads/'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Ensure the upload folder exists
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
 
 
 @app.route('/get_waste_log', methods=['GET', 'POST'])
@@ -525,22 +501,12 @@ def add_waste():
         quantity = int(request.form['quantity'])
         description = request.form['description']
 
-        # Handle file upload
-        image = request.files.get('image')
-        image_url = ''
-        if image:
-            image_filename = secure_filename(image.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-            image.save(image_path)
-            image_url = url_for('uploaded_file', filename=image_filename)
-
         new_waste = WasteLog(
             item=item,
             uoi=uoi,
             quantity=quantity,
             description=description,
-            date=datetime.now().strftime('%d %B %Y'),
-            image_url=image_url
+            date=datetime.now().strftime('%d %B %Y')
         )
 
         # Add to the database and commit
@@ -560,14 +526,6 @@ def edit_waste(item_id):
         item.quantity = int(request.form['quantity'])
         item.description = request.form['description']
 
-        # Handle file upload
-        image = request.files.get('image')
-        if image:
-            image_filename = secure_filename(image.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-            image.save(image_path)
-            item.image_url = url_for('uploaded_file', filename=image_filename)
-
         # Commit the changes to the database
         db.session.commit()
 
@@ -579,8 +537,7 @@ def edit_waste(item_id):
         'uoi': item.uoi,
         'quantity': item.quantity,
         'description': item.description,
-        'date': item.date,
-        'image_url': item.image_url
+        'date': item.date
     })
 
 
@@ -591,10 +548,6 @@ def delete_waste(item_id):
     db.session.commit()
     return redirect(url_for('get_waste_log'))
 
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/material_transactions', methods=['GET'])
 def material_transactions():
@@ -610,7 +563,6 @@ def material_transactions():
     return render_template('material_transactions.html',
                            transactions=filtered_transactions,
                            date_today=date_today)
-
 
 
 @app.route('/material', methods=['GET', 'POST'])
@@ -633,7 +585,7 @@ def material():
                 'item': material_item.item,
                 'current_stock': material_item.ending
             })
-    
+
         for tx_type in ['incoming', 'waste', 'outgoing']:
             quantity = getattr(material_item, tx_type, 0)
             if quantity > 0:
@@ -646,7 +598,7 @@ def material():
                     quantity=quantity,
                     stock=material_item.ending
                 ).first()
-    
+
                 # If no duplicate found, add the transaction
                 if not existing_transaction:
                     new_transaction = MaterialTransactions(
@@ -659,7 +611,7 @@ def material():
                         stock=material_item.ending
                     )
                     db.session.add(new_transaction)
-    
+
     # Commit all transaction logs at once
     db.session.commit()
 
@@ -687,6 +639,7 @@ def view_material():
     return render_template('view_material.html', material=filtered_material,
                            date_today=datetime.now().strftime('%Y-%m-%d'))
 
+
 @app.route('/validate_material', methods=['POST'])
 def validate_material():
     data = request.get_json()
@@ -699,6 +652,7 @@ def validate_material():
     exists = Material.query.filter(Material.item.ilike(f'%{material_name}%')).first() is not None
 
     return jsonify({"exists": exists})
+
 
 @app.route('/add_material', methods=['GET', 'POST'])
 def add_material():
@@ -821,22 +775,12 @@ def add_material_log():
         quantity = int(request.form['quantity'])
         description = request.form['description']
 
-        # Handle file upload
-        image = request.files.get('image')
-        image_url = ''
-        if image:
-            image_filename = secure_filename(image.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-            image.save(image_path)
-            image_url = url_for('uploaded_file', filename=image_filename)
-
         new_material_log = MaterialLog(
             item=item,
             uoi=uoi,
             quantity=quantity,
             description=description,
-            date=datetime.now().strftime('%d %B %Y'),
-            image_url=image_url
+            date=datetime.now().strftime('%d %B %Y')
         )
 
         db.session.add(new_material_log)
@@ -855,14 +799,6 @@ def edit_material_log(item_id):
         item.quantity = int(request.form['quantity'])
         item.description = request.form['description']
 
-        # Handle file upload
-        image = request.files.get('image')
-        if image:
-            image_filename = secure_filename(image.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-            image.save(image_path)
-            item.image_url = url_for('uploaded_file', filename=image_filename)
-
         db.session.commit()
 
         return redirect(url_for('get_material_log'))
@@ -873,8 +809,7 @@ def edit_material_log(item_id):
         'uoi': item.uoi,
         'quantity': item.quantity,
         'description': item.description,
-        'date': item.date,
-        'image_url': item.image_url
+        'date': item.date
     })
 
 
@@ -886,149 +821,93 @@ def delete_material_log(item_id):
     return redirect(url_for('get_material_log'))
 
 
-@app.route('/order_report')
-def order_report():
-    date_today = datetime.now().strftime('%d %B %Y')
-    search_query = request.args.get('search', '').strip()
+@app.route('/validate_item_request', methods=['POST'])
+def validate_item_request():
+    data = request.get_json()
+    item_name = data.get('item')
 
-    # Filter orders based on search query
-    if search_query:
-        filtered_orders = Order.query.filter(Order.order_id.like(f"%{search_query}%")).all()
+    # Check if the item already exists in the database
+    existing_item = Orders.query.filter_by(item=item_name).first()  # Adjust the model query as needed
+
+    if existing_item:
+        return jsonify({"exists": True})  # Item exists
     else:
-        filtered_orders = Order.query.all()
-
-    return render_template('order_report.html', date_today=date_today, orders=filtered_orders,
-                           search_query=search_query)
+        return jsonify({"exists": False})  # Item doesn't exist
 
 
-@app.route('/delete_order/<string:order_id>', methods=['POST'])
-def delete_order(order_id):
-    order = Order.query.filter_by(order_id=order_id).first()
-    if order:
-        db.session.delete(order)
-        db.session.commit()
-    return redirect(url_for('order_report'))
+@app.route('/orders_request', methods=['GET', 'POST'])
+def orders_request():
+    search_query = request.args.get('search', '').strip().lower()
+
+    if search_query:
+        filtered_orders = Orders.query.filter(Orders.item.ilike(f"%{search_query}%")).all()
+    else:
+        filtered_orders = Orders.query.all()
+
+    date_today = datetime.now().strftime('%d %B %Y')
+
+    return render_template('orders_request.html', orders=filtered_orders, date_today=date_today)
 
 
-@app.route('/order-form', methods=['GET', 'POST'])
-def order_form():
+@app.route('/add_orders_request', methods=['GET', 'POST'])
+def add_orders_request():
     if request.method == 'POST':
-        # Retrieve form data
-        order_id = request.form.get('order_id')
-        prepared_by = request.form.get('prepared_by')
-        checked_by = request.form.get('checked_by')
-        date = request.form.get('date')
-        time = request.form.get('time')
-        store_branch = request.form.get('store_branch')
-        status = request.form.get('status')
+        item = request.form['item'].strip().lower()
+        uoi = request.form['uoi']
+        quantity = int(request.form['quantity'])
+        status = request.form['status']
 
-        # Collect items in JSON format
-        wet_items = list(zip(request.form.getlist('wet_item[]'),
-                             request.form.getlist('wet_item_uoi[]'),
-                             request.form.getlist('wet_item_qty[]'),
-                             request.form.getlist('wet_item_prepared[]'),
-                             request.form.getlist('wet_item_received[]')))
+        # Check if item already exists in the database
+        existing_order = Orders.query.filter(func.lower(Orders.item) == item).first()
 
-        # Repeat for each item category in the same way
-        sauce_items = list(zip(request.form.getlist('sauce_item[]'),
-                               request.form.getlist('sauce_item_uoi[]'),
-                               request.form.getlist('sauce_item_qty[]'),
-                               request.form.getlist('sauce_item_prepared[]'),
-                               request.form.getlist('sauce_item_received[]')))
+        if existing_order:
+            return redirect(url_for('orders_request'))
 
-        # Similar for other categories
-        ice_cream_items = list(zip(request.form.getlist('ice_cream_item[]'),
-                                   request.form.getlist('ice_cream_item_uoi[]'),
-                                   request.form.getlist('ice_cream_item_qty[]'),
-                                   request.form.getlist('ice_cream_item_prepared[]'),
-                                   request.form.getlist('ice_cream_item_received[]')))
-
-        # Create a new Order instance
-        order = Order(
-            order_id=order_id,
-            prepared_by=prepared_by,
-            checked_by=checked_by,
-            date=date,
-            time=time,
-            store_branch=store_branch,
+        new_order = Orders(
+            item=item,
+            uoi=uoi,
+            quantity=quantity,
             status=status,
-            wet_items=wet_items,
-            sauce_items=sauce_items,
-            ice_cream_items=ice_cream_items,
-            shakes_items=list(zip(request.form.getlist('shakes_item[]'),
-                                  request.form.getlist('shakes_item_uoi[]'),
-                                  request.form.getlist('shakes_item_qty[]'),
-                                  request.form.getlist('shakes_item_prepared[]'),
-                                  request.form.getlist('shakes_item_received[]'))),
-            vegetables_items=list(zip(request.form.getlist('vegetables_item[]'),
-                                      request.form.getlist('vegetables_item_uoi[]'),
-                                      request.form.getlist('vegetables_item_qty[]'),
-                                      request.form.getlist('vegetables_item_prepared[]'),
-                                      request.form.getlist('vegetables_item_received[]'))),
-            packaging_items=list(zip(request.form.getlist('packaging_item[]'),
-                                     request.form.getlist('packaging_item_uoi[]'),
-                                     request.form.getlist('packaging_item_qty[]'),
-                                     request.form.getlist('packaging_item_prepared[]'),
-                                     request.form.getlist('packaging_item_received[]'))),
-            groceries_items=list(zip(request.form.getlist('groceries_item[]'),
-                                     request.form.getlist('groceries_item_uoi[]'),
-                                     request.form.getlist('groceries_item_qty[]'),
-                                     request.form.getlist('groceries_item_prepared[]'),
-                                     request.form.getlist('groceries_item_received[]'))),
-            manual_items=list(zip(request.form.getlist('manual_item[]'),
-                                  request.form.getlist('manual_item_uoi[]'),
-                                  request.form.getlist('manual_item_qty[]'),
-                                  request.form.getlist('manual_item_prepared[]'),
-                                  request.form.getlist('manual_item_received[]')))
+            date=datetime.now().strftime('%d %B %Y')
         )
 
-        # Add and commit the new order to the database
-        db.session.add(order)
+        db.session.add(new_order)
         db.session.commit()
 
-        # Redirect to the order report page or another page after submission
-        return redirect(url_for('order_report'))
-
-    # Render the order form template
-    return render_template('order_form.html')
+        return redirect(url_for('orders_request'))
 
 
-@app.route('/view_order/<order_id>', methods=['GET'])
-def view_order(order_id):
-    order = Order.query.filter_by(order_id=order_id).first()
-    if not order:
-        return "Order not found", 404
-    return render_template('view_order.html', order=order)
+@app.route('/edit_orders_request/<int:order_id>', methods=['GET', 'POST'])
+def edit_orders_request(order_id):
+    order = Orders.query.get_or_404(order_id)
 
-@app.route('/order_history', methods=['GET'])
-def order_history():
-    date = request.args.get('date')
+    if request.method == 'POST':
+        order.item = request.form['item']
+        order.uoi = request.form['uoi']
+        order.quantity = int(request.form['quantity'])
+        order.status = request.form['status']
 
-    if date:
-        try:
-            search_date = datetime.strptime(date, '%Y-%m-%d').strftime('%d %B %Y')
-        except ValueError:
-            search_date = None
-    else:
-        search_date = datetime.now().strftime('%d %B %Y')
+        db.session.commit()
 
-    filtered_orders = Order.query.filter_by(date=search_date).all()
+        return redirect(url_for('orders_request'))
 
-    return render_template('order_history.html', orders=filtered_orders,
-                           date_today=datetime.now().strftime('%Y-%m-%d'))
+    return jsonify({
+        'id': order.id,
+        'item': order.item,
+        'uoi': order.uoi,
+        'quantity': order.quantity,
+        'status': order.status,
+        'date': order.date
+    })
 
-@app.route('/edit_order_status/<string:order_id>', methods=['POST'])
-def edit_order_status(order_id):
-    # Fetch the order based on the order_id
-    order = Order.query.filter_by(order_id=order_id).first()
-    if order:
-        # Update the order status
-        new_status = request.form.get('status')
-        if new_status:
-            order.status = new_status
-            db.session.commit()
 
-    return redirect(url_for('order_report'))
+@app.route('/delete_orders_request/<int:order_id>', methods=['POST'])
+def delete_orders_request(order_id):
+    order = Orders.query.get_or_404(order_id)
+    db.session.delete(order)
+    db.session.commit()
+    return redirect(url_for('orders_request'))
+
 
 @app.route('/purchase_records')
 def purchase_records():
@@ -1039,8 +918,15 @@ def purchase_records():
     total_expenses_today = TotalExpenses.query.filter_by(date=datetime.utcnow().date()).first()
     total_expenses = total_expenses_today.total_amount if total_expenses_today else 0
 
-    return render_template('purchase_records.html', date_today=date_today, purchase_records=purchases,
-                           total_expenses=total_expenses)
+    # Format total_expenses with a comma and two decimal places
+    formatted_total_expenses = "{:,.2f}".format(total_expenses)
+
+    return render_template(
+        'purchase_records.html',
+        date_today=date_today,
+        purchase_records=purchases,
+        total_expenses=formatted_total_expenses  # Pass the formatted value
+    )
 
 
 @app.route('/api/purchase_records', methods=['GET'])
@@ -1052,7 +938,6 @@ def get_purchase_records():
         'quantity': record.quantity,
         'unit_price': record.unit_price,
         'total_price': record.total_price,
-        'receipt_url': record.receipt_url,
         'date': record.date.isoformat()
     } for record in records]
     return jsonify(data)
@@ -1070,16 +955,12 @@ def add_purchase_record_api():
     # Calculate the total price
     total_price = quantity * unit_price
 
-    # Handle receipt file URL if provided (for simplicity, assume a URL here; handling file uploads via API requires multipart/form-data)
-    receipt_url = data.get('receipt_url', '')
-
     # Add the new purchase to the database
     new_purchase = PurchaseRecord(
         item=item,
         quantity=quantity,
         unit_price=unit_price,
         total_price=total_price,
-        receipt_url=receipt_url
     )
     db.session.add(new_purchase)
 
@@ -1103,7 +984,6 @@ def add_purchase_record_api():
         'quantity': new_purchase.quantity,
         'unit_price': new_purchase.unit_price,
         'total_price': new_purchase.total_price,
-        'receipt_url': new_purchase.receipt_url,
         'date': today_date.isoformat()
     }), 201
 
@@ -1119,22 +999,12 @@ def add_purchase():
         # Calculate the total price
         total_price = quantity * unit_price
 
-        # Handle receipt file upload
-        receipt = request.files.get('receipt')
-        receipt_url = ''
-        if receipt:
-            receipt_filename = secure_filename(receipt.filename)
-            receipt_path = os.path.join(app.config['UPLOAD_FOLDER'], receipt_filename)
-            receipt.save(receipt_path)
-            receipt_url = url_for('uploaded_file', filename=receipt_filename)
-
         # Add the new purchase to the database
         new_purchase = PurchaseRecord(
             item=item,
             quantity=quantity,
             unit_price=unit_price,
-            total_price=total_price,
-            receipt_url=receipt_url
+            total_price=total_price
         )
         db.session.add(new_purchase)
 
@@ -1183,14 +1053,6 @@ def edit_purchase(purchase_id):
             total_expenses_today = TotalExpenses(date=datetime.utcnow().date(), total_amount=purchase.total_price)
             db.session.add(total_expenses_today)
 
-        # Handle receipt file upload (if a new one is provided)
-        receipt = request.files.get('receipt')
-        if receipt:
-            receipt_filename = secure_filename(receipt.filename)
-            receipt_path = os.path.join(app.config['UPLOAD_FOLDER'], receipt_filename)
-            receipt.save(receipt_path)
-            purchase.receipt_url = url_for('uploaded_file', filename=receipt_filename)
-
         # Commit the changes to the database
         db.session.commit()
 
@@ -1224,13 +1086,16 @@ def delete_purchase(purchase_id):
 
     return redirect(url_for('purchase_records'))
 
+
 @app.route('/view_record', methods=['GET'])
 def view_record():
     date = request.args.get('date')
-    search_date = datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d') if date else datetime.now().strftime('%Y-%m-%d')
+    search_date = datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d') if date else datetime.now().strftime(
+        '%Y-%m-%d')
     records = PurchaseRecord.query.filter_by(date=search_date).all()
     return render_template('view_record.html', record_details=records, date_today=datetime.now().strftime('%Y-%m-%d'))
-    
+
+
 @app.route('/logout')
 def logout():
     return "Logged out"
