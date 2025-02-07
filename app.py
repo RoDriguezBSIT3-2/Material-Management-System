@@ -306,6 +306,7 @@ def inventory():
     low_stock_items = [item for item in filtered_inventory if item.ending <= stock_threshold]
 
     new_orders = []
+    alerts = []
     for item in low_stock_items:
         reorder_quantity = max(0, item.beginning - item.ending)  # Reorder up to the "Beginning" stock level
 
@@ -322,6 +323,12 @@ def inventory():
                 status='pending',
                 date=datetime.now().strftime('%d %B %Y')
             ))
+        
+        # Add alerts for low stock
+        alerts.append({
+            'item': item.item,
+            'current_stock': item.ending
+        })
 
     if new_orders:
         db.session.add_all(new_orders)
@@ -329,7 +336,7 @@ def inventory():
 
     date_today = datetime.now().strftime('%d %B %Y')
 
-    return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today)
+    return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today, alerts=alerts)
 
 @app.route('/view_inventory', methods=['GET'])
 def view_inventory():
