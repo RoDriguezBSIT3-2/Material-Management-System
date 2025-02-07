@@ -9,7 +9,7 @@ import requests
 app = Flask(__name__)
 # Configure PostgreSQL Database
 app.config[
-    'SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgresql_24_user:uvhBY7myHeQwQfl0zxjm1sHg5VH3k4eZ@dpg-cuhqvnjv2p9s73c0ooe0-a.oregon-postgres.render.com/postgresql_24'
+    'SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgresql_25_user:zRP3Suxm2hFjHMuoeixT9qv5w3A69mx8@dpg-cuin378gph6c73ad177g-a.oregon-postgres.render.com/postgresql_25'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database connection
