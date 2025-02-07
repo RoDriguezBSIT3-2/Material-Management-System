@@ -236,24 +236,21 @@ def inventory():
         print(f"Error fetching orders: {e}")
         orders = []
 
-    # Fetch existing processed orders and transactions
+    # Fetch processed orders and transactions
     processed_orders = {f"{po.order_id}-{po.item}" for po in ProcessedOrder.query.all()}
     existing_transactions = {(t.item, t.transaction_type, t.date): t for t in Transactions.query.all()}
 
-    # Process orders and update inventory
     new_transactions = []
     for order in orders:
         order_id = order.get('order_id')
 
-        for item in order.get('items', []):  # Loop through each item in the order
+        for item in order.get('items', []):
             item_name = item.get('item_name')
             quantity = item.get('quantity', 0)
 
-            # Check if this item in the order has already been processed
             if f"{order_id}-{item_name}" in processed_orders:
                 continue
 
-            # Find the corresponding inventory item
             inventory_item = Inventory.query.filter_by(item=item_name).first()
             if inventory_item:
                 inventory_item.outgoing += quantity
@@ -262,7 +259,6 @@ def inventory():
                         - inventory_item.outgoing - inventory_item.waste
                 )
 
-                # Log the Sales transaction
                 if (item_name, 'sales', datetime.now().strftime('%Y-%m-%d')) not in existing_transactions:
                     new_transactions.append(Transactions(
                         item=item_name,
@@ -274,15 +270,13 @@ def inventory():
                         stock=inventory_item.ending
                     ))
 
-            # Mark this item in the order as processed
             db.session.add(ProcessedOrder(order_id=order_id, item=item_name))
 
-    # Log Incoming, Waste, and Outgoing stock with deduplication
+    # Log Incoming, Waste, and Outgoing transactions
     for inventory_item in filtered_inventory:
         for tx_type in ['incoming', 'waste', 'outgoing']:
             quantity = getattr(inventory_item, tx_type, 0)
             if quantity > 0:
-                # Check if a similar transaction already exists
                 existing_transaction = Transactions.query.filter_by(
                     item=inventory_item.item,
                     uoi=inventory_item.uoi,
@@ -292,7 +286,6 @@ def inventory():
                     stock=inventory_item.ending
                 ).first()
 
-                # If no duplicate found, add the transaction
                 if not existing_transaction:
                     transaction = Transactions(
                         item=inventory_item.item,
@@ -305,39 +298,38 @@ def inventory():
                     )
                     db.session.add(transaction)
 
-    # Commit all transaction logs at once
+    # Commit all transactions at once
     db.session.commit()
 
-    # Define the threshold for stock levels
+    # **Automatic Reordering System Based on "Beginning" Stock**
     stock_threshold = 10
-    alerts = [
-        {'item': item.item, 'current_stock': item.ending}
-        for item in filtered_inventory if item.ending <= stock_threshold
-    ]
+    low_stock_items = [item for item in filtered_inventory if item.ending <= stock_threshold]
 
-    # Automatically reorder items with low stock, targeting a reorder level of 20
-    for item in filtered_inventory:
-        reorder_level = max(0, 20 - item.ending)  # Calculate reorder level to reach 20
-        if reorder_level > 0:
-            # Check if the item already exists in orders
-            existing_order = Orders.query.filter(func.lower(Orders.item) == item.item.lower()).first()
+    new_orders = []
+    for item in low_stock_items:
+        reorder_quantity = max(0, item.beginning - item.ending)  # Reorder up to the "Beginning" stock level
 
-            if not existing_order:
-                # Create a new order for the item with low stock
-                new_order = Orders(
-                    item=item.item,
-                    uoi=item.uoi,
-                    quantity=reorder_level,  # Quantity to reorder to reach a stock of 20
-                    status='pending',  # Pending status for the new order
-                    date=datetime.now().strftime('%d %B %Y')
-                )
-                db.session.add(new_order)
-                db.session.commit()
+        existing_order = Orders.query.filter(
+            func.lower(Orders.item) == item.item.lower(),
+            Orders.status == 'pending'
+        ).first()
+
+        if not existing_order and reorder_quantity > 0:
+            new_orders.append(Orders(
+                item=item.item,
+                uoi=item.uoi,
+                quantity=reorder_quantity,
+                status='pending',
+                date=datetime.now().strftime('%d %B %Y')
+            ))
+
+    if new_orders:
+        db.session.add_all(new_orders)
+        db.session.commit()
 
     date_today = datetime.now().strftime('%d %B %Y')
 
-    return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today, alerts=alerts)
-
+    return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today)
 
 @app.route('/view_inventory', methods=['GET'])
 def view_inventory():
