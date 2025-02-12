@@ -744,6 +744,17 @@ def delete_material(item_id):
     db.session.commit()
     return redirect(url_for('material'))
 
+@app.route("/validate_material_waste", methods=["POST"])
+def validate_material_waste():
+    data = request.get_json()
+    item_name = data.get('item', '').strip().lower()
+
+    if not item_name:
+        return jsonify({"exists": False, "error": "Item name is required"}), 400
+
+    exists = MaterialLog.query.filter(MaterialLog.item.ilike(f'%{item_name}%')).first() is not None
+
+    return jsonify({"exists": exists})
 
 @app.route('/get_material_log', methods=['GET', 'POST'])
 def get_material_log():
