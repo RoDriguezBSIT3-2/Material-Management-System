@@ -27,6 +27,10 @@
     </div>
 </nav>
 
+<div id="successMessage" class="alert-success" style="display: none;">
+    Saved Successfully!
+</div>
+
 <div class="inventory-info">
     <p><b class="highlight-date">{{ date_today }}</b></p>
     <div class="search-box-container">
@@ -140,6 +144,19 @@
 </div>
 
 <style>
+    .alert-success {
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
 
     #export-button {
     background-color: #c8131a;
@@ -219,54 +236,99 @@
 </style>
 
 <script>
-// Add Modal logic
-var addModal = document.getElementById("addMaterialWasteModal");
-var openAddModalButton = document.getElementById("openMaterialModalButton");
-var closeAddModalButton = document.getElementsByClassName("close-button")[0];
-var cancelAddButton = document.getElementById("closeAddMaterialModalButton");
+document.addEventListener("DOMContentLoaded", function () {
+    // Add Material Waste Modal
+    var addModal = document.getElementById("addMaterialWasteModal");
+    var openAddModalButton = document.getElementById("openMaterialModalButton");
+    var closeAddModalButton = addModal.querySelector(".close-button");
+    var cancelAddButton = document.getElementById("closeAddMaterialModalButton");
+    var addForm = addModal.querySelector(".add-inventory-form");
+    var successMessage = document.getElementById("successMessage");
 
-openAddModalButton.addEventListener("click", function() {
-    addModal.style.display = "block";
-});
+    // Open add modal
+    openAddModalButton.addEventListener("click", function() {
+        addModal.style.display = "block";
+    });
 
-closeAddModalButton.addEventListener("click", function() {
-    addModal.style.display = "none";
-});
-cancelAddButton.addEventListener("click", function() {
-    addModal.style.display = "none";
-});
-
-// Edit Modal logic
-var editModal = document.getElementById("editMaterialWasteModal");
-var closeEditModalButton = document.getElementsByClassName("close-button")[1];
-var cancelEditButton = document.getElementById("closeEditMaterialModalButton");
-
-closeEditModalButton.addEventListener("click", function() {
-    editModal.style.display = "none";
-});
-cancelEditButton.addEventListener("click", function() {
-    editModal.style.display = "none";
-});
-
-function openEditModal(id, item, uoi, quantity, description) {
-    var form = document.getElementById("editMaterialWasteForm");
-    form.action = "/edit_material_log/" + id;  // Corrected route
-
-    document.getElementById("editItem").value = item;
-    document.getElementById("editUoi").value = uoi;
-    document.getElementById("editQuantity").value = quantity;
-    document.getElementById("editMaterialDescription").value = description;
-
-    editModal.style.display = "block";
-}
-
-// Closing modals when clicking outside the modal content
-window.addEventListener("click", function(event) {
-    if (event.target == addModal || event.target == editModal ) {
+    // Close add modal
+    closeAddModalButton.addEventListener("click", function() {
         addModal.style.display = "none";
+    });
+
+    cancelAddButton.addEventListener("click", function() {
+        addModal.style.display = "none";
+    });
+
+    // Handle add form submission with validation
+    addForm.addEventListener("submit", function (event) {
+        event.preventDefault(); // Prevent default submission
+
+        var itemName = document.getElementById("item").value.trim();
+
+        if (!itemName) {
+            alert("Item name is required.");
+            return;
+        }
+
+        // Validate item uniqueness
+        fetch("/validate_material_waste", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ item: itemName }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                alert("This item already exists in the material waste log.");
+            } else {
+                successMessage.style.display = "block"; // Show success message
+                addModal.style.display = "none";
+
+                setTimeout(function () {
+                    successMessage.style.display = "none";
+                }, 3000);
+
+                addForm.submit(); // Submit form
+            }
+        })
+        .catch(error => console.error("Validation error:", error));
+    });
+
+    // Edit Material Waste Modal
+    var editModal = document.getElementById("editMaterialWasteModal");
+    var closeEditModalButton = editModal.querySelector(".close-button");
+    var cancelEditButton = document.getElementById("closeEditMaterialModalButton");
+    var editForm = document.getElementById("editMaterialWasteForm");
+
+    // Close edit modal
+    closeEditModalButton.addEventListener("click", function() {
         editModal.style.display = "none";
-    }
+    });
+
+    cancelEditButton.addEventListener("click", function() {
+        editModal.style.display = "none";
+    });
+
+    // Function to open edit modal with pre-filled values
+    window.openEditModal = function (id, item, uoi, quantity, description) {
+        editForm.action = "/edit_material_log/" + id;
+        document.getElementById("editItem").value = item;
+        document.getElementById("editUoi").value = uoi;
+        document.getElementById("editQuantity").value = quantity;
+        document.getElementById("editMaterialDescription").value = description;
+
+        editModal.style.display = "block";
+    };
+
+    // Close modals when clicking outside modal content
+    window.addEventListener("click", function(event) {
+        if (event.target == addModal) addModal.style.display = "none";
+        if (event.target == editModal) editModal.style.display = "none";
+    });
 });
+
+
+
     const searchInput = document.querySelector('.search-box');
 
     searchInput.addEventListener('input', function() {
