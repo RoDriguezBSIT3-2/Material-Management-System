@@ -460,6 +460,17 @@ def inventory_transactions():
                            transactions=filtered_transactions,
                            date_today=date_today)
 
+@app.route('/validate_waste', methods=['POST'])
+def validate_waste():
+    data = request.get_json()
+    item_name = data.get('item', '').strip().lower()
+
+    if not item_name:
+        return jsonify({"exists": False, "error": "Item name is required"}), 400
+
+    exists = WasteLog.query.filter(WasteLog.item.ilike(f'%{item_name}%')).first() is not None
+
+    return jsonify({"exists": exists})
 
 @app.route('/get_waste_log', methods=['GET', 'POST'])
 def get_waste_log():
