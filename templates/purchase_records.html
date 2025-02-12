@@ -23,6 +23,10 @@
     </div>
 </nav>
 
+<div id="successMessage" class="alert-success" style="display: none;">
+    Saved Successfully!
+</div>
+
 <div class="inventory-info">
     <p><b class="highlight-date">{{ date_today }}</b></p>
 </div>
@@ -134,6 +138,19 @@
 
 
 <style>
+ .alert-success {
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
 
     #export-button {
     background-color: #c8131a;
@@ -242,37 +259,68 @@
 
 
 <script>
-// Open Add Purchase Modal
-function addItem() {
-    document.getElementById('addPurchaseModal').style.display = 'block';
-}
+ document.addEventListener("DOMContentLoaded", function () {
+        var addModal = document.getElementById("addPurchaseModal");
+        var openAddModalButton = document.getElementById("add-inventory-button");
+        var closeAddModalButton = document.getElementsByClassName("close-button")[0];
+        var cancelAddButton = document.getElementById("closeAddModalButton");
+        var successMessage = document.getElementById("successMessage");
 
-// Open Edit Purchase Modal
-function openEditModal(id, item, quantity, unitPrice, totalPrice) {
-    const editModal = document.getElementById('editPurchaseModal');
+        // Open the modal
+        openAddModalButton.addEventListener("click", function () {
+            addModal.style.display = "block";
+        });
 
-    // Show the modal
-    editModal.style.display = 'block';
+        // Close the modal when clicking the close button
+        closeAddModalButton.addEventListener("click", function () {
+            addModal.style.display = "none";
+        });
 
-    // Fill in the form values
-    document.getElementById('editItem').value = item;
-    document.getElementById('editQuantity').value = quantity;
-    document.getElementById('editUnitPrice').value = unitPrice;
+        // Close the modal when clicking the cancel button
+        cancelAddButton.addEventListener("click", function () {
+            addModal.style.display = "none";
+        });
 
-    // Set the action URL dynamically based on the item ID
-    document.getElementById('editPurchaseForm').action = `/edit_purchase/${id}`;
-}
+        // Handle form submission with purchase validation
+        document.querySelector(".add-inventory-form").addEventListener("submit", function (event) {
+            event.preventDefault(); // Prevent form submission for validation
 
-// Close Modals (Close buttons and Cancel buttons)
-document.querySelectorAll('.close-button, .cancel-button').forEach(button => {
-    button.onclick = function() {
-        const modal = button.closest('.modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-});
+            var itemName = document.getElementById("item").value.trim();
 
+            if (!itemName) {
+                alert("Item name is required.");
+                return;
+            }
+
+            // Check for duplication using validate_purchase endpoint
+            fetch("/validate_purchase", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ item: itemName }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        alert("This item already exists, Please use a different name.");
+                    } else {
+                        // Allow form submission
+                        successMessage.style.display = "block";
+                        addModal.style.display = "none";
+
+                        // Hide success message after 3 seconds
+                        setTimeout(function () {
+                            successMessage.style.display = "none";
+                        }, 3000);
+
+                        // Submit the form programmatically
+                        document.querySelector(".add-inventory-form").submit();
+                    }
+                })
+                .catch(error => console.error("Error validating purchase item:", error));
+        });
+    });
 
 // Total Expense Calculation
 function calculateTotalExpenses() {
