@@ -907,6 +907,17 @@ def delete_orders_request(order_id):
     db.session.commit()
     return redirect(url_for('orders_request'))
 
+@app.route('/validate_purchase', methods=['POST'])
+def validate_purchase():
+    data = request.get_json()
+    item_name = data.get('item', '').strip().lower()
+
+    if not item_name:
+        return jsonify({"exists": False, "error": "Item name is required"}), 400
+
+    exists = PurchaseRecord.query.filter(PurchaseRecord.item.ilike(f'%{item_name}%')).first() is not None
+
+    return jsonify({"exists": exists})
 
 @app.route('/purchase_records')
 def purchase_records():
