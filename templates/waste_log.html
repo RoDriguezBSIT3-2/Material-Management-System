@@ -27,6 +27,10 @@
     </div>
 </nav>
 
+<div id="successMessage" class="alert-success" style="display: none;">
+    Saved Successfully!
+</div>
+
 <div class="inventory-info">
     <p><b class="highlight-date">{{ date_today }}</b></p>
     <div class="search-box-container">
@@ -165,7 +169,19 @@
 
 
 <style>
-
+    .alert-success {
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
     #export-button {
     background-color: #c8131a;
     color: white;
@@ -244,61 +260,107 @@
 </style>
 
 <script>
-// Add Modal logic
-var addModal = document.getElementById("addWasteModal");
-var openAddModalButton = document.getElementById("openModalButton");
-var closeAddModalButton = document.getElementsByClassName("close-button")[0];
-var cancelAddButton = document.getElementById("closeAddModalButton");
+    document.addEventListener("DOMContentLoaded", function () {
+        var addWasteModal = document.getElementById("addWasteModal");
+        var openAddWasteModalButton = document.getElementById("openModalButton");
+        var closeAddWasteModalButton = document.getElementsByClassName("close-button")[0];
+        var cancelAddWasteButton = document.getElementById("closeAddModalButton");
+        var successMessage = document.getElementById("successMessage");
 
-openAddModalButton.addEventListener("click", function() {
-    addModal.style.display = "block";
-});
+        // Open the modal
+        openAddWasteModalButton.addEventListener("click", function () {
+            addWasteModal.style.display = "block";
+        });
 
-closeAddModalButton.addEventListener("click", function() {
-    addModal.style.display = "none";
-});
-cancelAddButton.addEventListener("click", function() {
-    addModal.style.display = "none";
-});
+        // Close the modal when clicking the close button
+        closeAddWasteModalButton.addEventListener("click", function () {
+            addWasteModal.style.display = "none";
+        });
 
-// Edit Modal logic
-var editModal = document.getElementById("editWasteModal");
-var closeEditModalButton = document.getElementsByClassName("close-button")[1];
-var cancelEditButton = document.getElementById("closeEditModalButton");
+        // Close the modal when clicking the cancel button
+        cancelAddWasteButton.addEventListener("click", function () {
+            addWasteModal.style.display = "none";
+        });
 
-function openEditModal(id, item, uoi, quantity, description) {
-    editModal.style.display = "block";
-    var form = document.getElementById("editWasteForm");
-    form.action = "/edit_waste/" + id;
-    document.getElementById("editItem").value = item;
-    document.getElementById("editUoi").value = uoi;
-    document.getElementById("editQuantity").value = quantity;
+        // Handle form submission with waste validation
+        document.querySelector(".add-inventory-form").addEventListener("submit", function (event) {
+            event.preventDefault(); // Prevent form submission for validation
 
-    var descriptionSelect = document.getElementById("editDescription");
-    for (var i = 0; i < descriptionSelect.options.length; i++) {
-        if (descriptionSelect.options[i].value === description) {
-            descriptionSelect.selectedIndex = i;
-            break;
+            var itemName = document.getElementById("item").value.trim();
+
+            if (!itemName) {
+                alert("Item name is required.");
+                return;
+            }
+
+            // Check for duplication using validate_waste endpoint
+            fetch("/validate_waste", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ item: itemName }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        alert("This item already exists in the waste log. Please use a different name.");
+                    } else {
+                        // Allow form submission
+                        successMessage.style.display = "block";
+                        addWasteModal.style.display = "none";
+
+                        // Hide success message after 3 seconds
+                        setTimeout(function () {
+                            successMessage.style.display = "none";
+                        }, 3000);
+
+                        // Submit the form programmatically
+                        document.querySelector(".add-inventory-form").submit();
+                    }
+                })
+                .catch(error => console.error("Error validating waste item:", error));
+        });
+
+        // Edit Modal logic
+        var editWasteModal = document.getElementById("editWasteModal");
+        var closeEditWasteModalButton = document.getElementsByClassName("close-button")[1];
+        var cancelEditWasteButton = document.getElementById("closeEditModalButton");
+
+        function openEditWasteModal(id, item, uoi, quantity, description) {
+            editWasteModal.style.display = "block";
+            var form = document.getElementById("editWasteForm");
+            form.action = "/edit_waste/" + id;
+            document.getElementById("editItem").value = item;
+            document.getElementById("editUoi").value = uoi;
+            document.getElementById("editQuantity").value = quantity;
+
+            var descriptionSelect = document.getElementById("editDescription");
+            for (var i = 0; i < descriptionSelect.options.length; i++) {
+                if (descriptionSelect.options[i].value === description) {
+                    descriptionSelect.selectedIndex = i;
+                    break;
+                }
+            }
         }
-    }
 
-}
+        closeEditWasteModalButton.addEventListener("click", function() {
+            editWasteModal.style.display = "none";
+        });
+        cancelEditWasteButton.addEventListener("click", function() {
+            editWasteModal.style.display = "none";
+        });
 
-closeEditModalButton.addEventListener("click", function() {
-    editModal.style.display = "none";
-});
-cancelEditButton.addEventListener("click", function() {
-    editModal.style.display = "none";
-});
-
-
-
-// Close modal when clicking outside the modal content
-window.addEventListener("click", function(event) {
-    if (event.target == imageModal) {
-        imageModal.style.display = "none";
-    }
-});
+        // Close modal when clicking outside the modal content
+        window.addEventListener("click", function(event) {
+            if (event.target == addWasteModal) {
+                addWasteModal.style.display = "none";
+            }
+            if (event.target == editWasteModal) {
+                editWasteModal.style.display = "none";
+            }
+        });
+    });
 
     const searchInput = document.querySelector('.search-box');
 
