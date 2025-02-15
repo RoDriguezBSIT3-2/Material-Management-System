@@ -260,29 +260,80 @@
 
 <script>
  document.addEventListener("DOMContentLoaded", function () {
-        var addModal = document.getElementById("addPurchaseModal");
-        var openAddModalButton = document.getElementById("add-inventory-button");
-        var closeAddModalButton = document.getElementsByClassName("close-button")[0];
-        var cancelAddButton = document.getElementById("closeAddModalButton");
-        var successMessage = document.getElementById("successMessage");
+    // Select Modals
+    var addModal = document.getElementById("addPurchaseModal");
+    var editModal = document.getElementById("editPurchaseModal");
 
-        // Open the modal
+    // Open and Close Buttons
+    var openAddModalButton = document.getElementById("add-inventory-button");
+    var closeAddModalButton = document.querySelector("#addPurchaseModal .close-button");
+    var cancelAddButton = document.getElementById("closeAddModalButton");
+
+    var closeEditModalButton = document.getElementById("closeEditModalButton");
+    var editCloseButton = document.querySelector("#editPurchaseModal .close-button"); 
+
+    var successMessage = document.getElementById("successMessage");
+
+    // Open the Add modal
+    if (openAddModalButton) {
         openAddModalButton.addEventListener("click", function () {
             addModal.style.display = "block";
         });
+    }
 
-        // Close the modal when clicking the close button
+    // Close the Add modal
+    if (closeAddModalButton) {
         closeAddModalButton.addEventListener("click", function () {
             addModal.style.display = "none";
         });
+    }
 
-        // Close the modal when clicking the cancel button
+    if (cancelAddButton) {
         cancelAddButton.addEventListener("click", function () {
             addModal.style.display = "none";
         });
+    }
 
-        // Handle form submission with purchase validation
-        document.querySelector(".add-inventory-form").addEventListener("submit", function (event) {
+    // Open the Edit modal function
+    window.openEditModal = function (id, item, quantity, unitPrice, totalPrice, receiptUrl) {
+        document.getElementById("editItem").value = item;
+        document.getElementById("editQuantity").value = quantity;
+        document.getElementById("editUnitPrice").value = unitPrice;
+
+        document.getElementById("editPurchaseForm").action = "/edit_purchase/" + id; // Set form action dynamically
+
+        editModal.style.display = "block";
+    };
+
+    // Close the Edit modal when clicking the "X"
+    if (editCloseButton) {
+        editCloseButton.addEventListener("click", function () {
+            editModal.style.display = "none";
+        });
+    }
+
+    // Close the Edit modal when clicking "Cancel"
+    if (closeEditModalButton) {
+        closeEditModalButton.addEventListener("click", function () {
+            editModal.style.display = "none";
+        });
+    }
+
+    // Close modal when clicking outside the modal content
+    window.addEventListener("click", function (event) {
+        if (event.target === editModal) {
+            editModal.style.display = "none";
+        }
+        if (event.target === addModal) {
+            addModal.style.display = "none";
+        }
+    });
+
+    // Handle form submission with purchase validation
+    var addInventoryForm = document.querySelector(".add-inventory-form");
+
+    if (addInventoryForm) {
+        addInventoryForm.addEventListener("submit", function (event) {
             event.preventDefault(); // Prevent form submission for validation
 
             var itemName = document.getElementById("item").value.trim();
@@ -315,12 +366,13 @@
                         }, 3000);
 
                         // Submit the form programmatically
-                        document.querySelector(".add-inventory-form").submit();
+                        addInventoryForm.submit();
                     }
                 })
                 .catch(error => console.error("Error validating purchase item:", error));
         });
-    });
+    }
+});
 
 // Total Expense Calculation
 function calculateTotalExpenses() {
