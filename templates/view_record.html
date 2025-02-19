@@ -35,7 +35,6 @@
             <th>Quantity</th>
             <th>Unit Price</th>
             <th>Total Price</th>
-            <th>Receipt</th>
         </tr>
     </thead>
     <tbody>
@@ -46,18 +45,11 @@
                 <td>{{ item['quantity'] }}</td>
                 <td>{{ item['unit_price'] }}</td>
                 <td>{{ item['total_price'] }}</td>
-                <td>
-                    {% if item['receipt_url'] %}
-                        <img src="{{ item['receipt_url'] }}" alt="Receipt" class="item-image" onclick="openImageModal('{{ item['receipt_url'] }}')">
-                    {% else %}
-                        No Receipt
-                    {% endif %}
-                </td>
             </tr>
             {% endfor %}
         {% else %}
             <tr>
-                <td colspan="5">No details available for this record.</td>
+                <td colspan="4">No details available for this record.</td>
             </tr>
         {% endif %}
     </tbody>
