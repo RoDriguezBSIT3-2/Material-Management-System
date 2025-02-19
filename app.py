@@ -243,35 +243,44 @@ def inventory():
 
     new_transactions = []
     for order in orders:
-        order_id = order.get('order_id')
+        order_id = order.get('orderID')
 
         for item in order.get('items', []):
-            item_name = item.get('item_name')
-            quantity = item.get('quantity', 0)
+            ingredients_text = item.get('ingredients', '')  # Get raw ingredient string
 
-            if f"{order_id}-{item_name}" in processed_orders:
-                continue
+            if not ingredients_text:
+                continue  # Skip if no ingredients
 
-            inventory_item = Inventory.query.filter_by(item=item_name).first()
-            if inventory_item:
-                inventory_item.outgoing += quantity
-                inventory_item.ending = (
-                        inventory_item.beginning + inventory_item.incoming
-                        - inventory_item.outgoing - inventory_item.waste
-                )
+            # Extract quantities and ingredient names using regex
+            matches = re.findall(r'(\d+)\s*\w*\s*([\w\s()-]+)', ingredients_text)
 
-                if (item_name, 'sales', datetime.now().strftime('%Y-%m-%d')) not in existing_transactions:
-                    new_transactions.append(Transactions(
-                        item=item_name,
-                        uoi=inventory_item.uoi,
-                        date=datetime.now().strftime('%Y-%m-%d'),
-                        time=datetime.now().strftime('%H:%M:%S'),
-                        transaction_type='sales',
-                        quantity=quantity,
-                        stock=inventory_item.ending
-                    ))
+            for match in matches:
+                quantity = int(match[0])  # Extract quantity
+                ingredient = match[1].strip()  # Extract ingredient name
 
-            db.session.add(ProcessedOrder(order_id=order_id, item=item_name))
+                if f"{order_id}-{ingredient}" in processed_orders:
+                    continue  # Skip if already processed
+
+                inventory_item = Inventory.query.filter_by(item=ingredient).first()
+                if inventory_item:
+                    inventory_item.outgoing += quantity
+                    inventory_item.ending = (
+                            inventory_item.beginning + inventory_item.incoming
+                            - inventory_item.outgoing - inventory_item.waste
+                    )
+
+                    if (ingredient, 'sales', datetime.now().strftime('%Y-%m-%d')) not in existing_transactions:
+                        new_transactions.append(Transactions(
+                            item=ingredient,
+                            uoi=inventory_item.uoi,
+                            date=datetime.now().strftime('%Y-%m-%d'),
+                            time=datetime.now().strftime('%H:%M:%S'),
+                            transaction_type='sales',
+                            quantity=quantity,
+                            stock=inventory_item.ending
+                        ))
+
+                db.session.add(ProcessedOrder(order_id=order_id, item=ingredient))
 
     # Log Incoming, Waste, and Outgoing transactions
     for inventory_item in filtered_inventory:
@@ -324,7 +333,7 @@ def inventory():
                 status='pending',
                 date=datetime.now().strftime('%d %B %Y')
             ))
-        
+
         # Add alerts for low stock
         alerts.append({
             'item': item.item,
