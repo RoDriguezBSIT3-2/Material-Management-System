@@ -35,7 +35,6 @@
             <th>(UOI)</th>
             <th>Quantity</th>
             <th>Description</th>
-            <th>Image</th>
         </tr>
     </thead>
     <tbody>
@@ -46,18 +45,11 @@
                 <td>{{ item['uoi'] }}</td>
                 <td>{{ item['quantity'] }}</td>
                 <td>{{ item['description'] }}</td>
-                <td>
-                    {% if item['image_url'] %}
-                        <img src="{{ item['image_url'] }}" alt="{{ item['item'] }}" class="item-image" onclick="openImageModal('{{ item['image_url'] }}')">
-                    {% else %}
-                        No Image
-                    {% endif %}
-                </td>
             </tr>
             {% endfor %}
         {% else %}
             <tr>
-                <td colspan="5">No material records found for the selected date.</td>
+                <td colspan="4">No material records found for the selected date.</td>
             </tr>
         {% endif %}
     </tbody>
