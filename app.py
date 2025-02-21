@@ -221,7 +221,7 @@ def get_inventory_summary():
 @app.route('/inventory', methods=['GET'])
 def inventory():
     search_query = request.args.get('search', '').strip().lower()
-    
+
     if search_query:
         filtered_inventory = Inventory.query.filter(Inventory.item.ilike(f'%{search_query}%')).all()
     else:
@@ -249,6 +249,7 @@ def inventory():
 
         for item in order.get('items', []):
             ingredients_text = item.get('ingredients', '')
+            quantity = item.get('quantity', 1)  # Get item quantity
 
             if not ingredients_text:
                 continue
@@ -256,18 +257,19 @@ def inventory():
             matches = re.findall(r'(\d+)\s*\w*\s*([\w\s()-]+)', ingredients_text)
 
             for match in matches:
-                quantity = int(match[0])
+                base_quantity = int(match[0])
                 ingredient = match[1].strip()
+                adjusted_quantity = base_quantity * quantity  # Adjust quantity based on order quantity
 
                 if f"{order_id}-{ingredient}" in processed_orders:
-                    continue  
+                    continue
 
                 inventory_item = Inventory.query.filter_by(item=ingredient).first()
                 if inventory_item:
-                    inventory_item.outgoing += quantity
+                    inventory_item.outgoing += adjusted_quantity
                     inventory_item.ending = (
-                        inventory_item.beginning + inventory_item.incoming
-                        - inventory_item.outgoing - inventory_item.waste
+                            inventory_item.beginning + inventory_item.incoming
+                            - inventory_item.outgoing - inventory_item.waste
                     )
 
                     if (ingredient, 'sales', datetime.now().strftime('%Y-%m-%d')) not in existing_transactions:
@@ -277,11 +279,10 @@ def inventory():
                             date=datetime.now().strftime('%Y-%m-%d'),
                             time=datetime.now().strftime('%H:%M:%S'),
                             transaction_type='sales',
-                            quantity=quantity,
+                            quantity=adjusted_quantity,
                             stock=inventory_item.ending
                         ))
 
-                # **Fix: Check if ProcessedOrder already exists before inserting**
                 existing_processed_order = ProcessedOrder.query.filter_by(order_id=order_id, item=ingredient).first()
                 if not existing_processed_order:
                     try:
@@ -290,7 +291,6 @@ def inventory():
                         db.session.rollback()
                         print(f"Duplicate entry detected for {order_id} - {ingredient}, skipping insert.")
 
-    # Log Incoming, Waste, and Outgoing transactions
     for inventory_item in filtered_inventory:
         for tx_type in ['incoming', 'waste', 'outgoing']:
             quantity = getattr(inventory_item, tx_type, 0)
@@ -316,17 +316,15 @@ def inventory():
                     )
                     db.session.add(transaction)
 
-    # Commit all transactions at once
     db.session.commit()
 
-    # **Automatic Reordering System Based on "Beginning" Stock**
     stock_threshold = 10
     low_stock_items = [item for item in filtered_inventory if item.ending <= stock_threshold]
 
     new_orders = []
     alerts = []
     for item in low_stock_items:
-        reorder_quantity = max(0, item.beginning - item.ending)  
+        reorder_quantity = max(0, item.beginning - item.ending)
 
         existing_order = Orders.query.filter(
             func.lower(Orders.item) == item.item.lower(),
