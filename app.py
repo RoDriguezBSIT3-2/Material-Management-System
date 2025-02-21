@@ -200,7 +200,7 @@ def get_inventory_summary():
     data = []
     for record in inventory_data:
         status = "In Stock"  # Default status
-        if record.ending == 0:
+        if record.ending <= 0:
             status = "Out of Stock"
         elif record.ending <= 10:
             status = "Low Stock"
