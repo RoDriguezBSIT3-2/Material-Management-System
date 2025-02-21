@@ -397,12 +397,14 @@ def add_inventory():
         item = request.form['item']
         uoi = request.form['uoi']
         beginning = int(request.form['beginning'])
-        incoming = int(request.form['incoming'])
-        outgoing = int(request.form['outgoing'])
-        waste = int(request.form['waste'])
 
-        # Automatically calculate the ending balance
-        ending = beginning + incoming - outgoing - waste
+        # Automatically set incoming, outgoing, and waste to zero
+        incoming = 0
+        outgoing = 0
+        waste = 0
+
+        # Calculate ending balance
+        ending = beginning + incoming - outgoing - waste  # Essentially just 'beginning' since all others are 0
 
         new_item = Inventory(
             item=item,
@@ -419,7 +421,7 @@ def add_inventory():
         db.session.add(new_item)
         db.session.commit()
 
-        return redirect(url_for('inventory'))
+        return redirect(url_for('inventory'))  # Adjust redirection as needed
 
     return render_template('add_inventory.html')
 
