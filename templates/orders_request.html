@@ -34,13 +34,14 @@
         </form>
     </div>
 </div>
-
 <table class="inventory-table">
     <thead>
         <tr>
             <th>Items</th>
             <th>UOI</th>
             <th>Quantity</th>
+            <th>Reorder Date</th>
+            <th>Reorder Time</th>
             <th>Status</th>
             <th>Actions</th>
         </tr>
@@ -52,9 +53,11 @@
                 <td>{{ order.item }}</td>
                 <td>{{ order.uoi }}</td>
                 <td>{{ order.quantity }}</td>
+                <td>{{ order.reorder_date }}</td>
+                <td>{{ order.reorder_time }}</td>
                 <td>{{ order.status }}</td>
                 <td>
-                    <button type="button" class="edit" onclick="openEditOrderModal({{ order.id }}, '{{ order.item }}', '{{ order.uoi }}', {{ order.quantity }}, '{{ order.status }}')">
+                    <button type="button" class="edit" onclick="openEditOrderModal({{ order.id }}, '{{ order.item }}', '{{ order.uoi }}', {{ order.quantity }}, '{{ order.status }}', '{{ order.reorder_date }}', '{{ order.reorder_time }}')">
                         <i class="fas fa-edit"></i>
                     </button>
                     <form action="{{ url_for('delete_orders_request', order_id=order.id) }}" method="POST" style="display:inline;">
@@ -67,7 +70,7 @@
             {% endfor %}
         {% else %}
             <tr>
-                <td colspan="5">No orders found.</td>
+                <td colspan="7">No orders found.</td>
             </tr>
         {% endif %}
     </tbody>
@@ -78,7 +81,7 @@
     <div class="modal-content">
         <span class="close-button" onclick="closeAddOrderModal()">&times;</span>
         <h1 class="page-title">Add Order</h1>
-       <form id="orderForm" action="{{ url_for('add_orders_request') }}" method="POST">
+        <form id="orderForm" action="{{ url_for('add_orders_request') }}" method="POST">
             <div class="form-row">
                 <div class="form-group">
                     <label for="item">Item:</label>
@@ -91,6 +94,14 @@
                 <div class="form-group">
                     <label for="quantity">Quantity:</label>
                     <input type="number" id="quantity" name="quantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="reorder_date">Reorder Date:</label>
+                    <input type="date" id="reorder_date" name="reorder_date" required>
+                </div>
+                <div class="form-group">
+                    <label for="reorder_time">Reorder Time:</label>
+                    <input type="time" id="reorder_time" name="reorder_time" required>
                 </div>
                 <div class="form-group">
                     <label for="status">Status:</label>
@@ -130,6 +141,14 @@
                 <div class="form-group">
                     <label for="editQuantity">Quantity:</label>
                     <input type="number" id="editQuantity" name="quantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="editReorderDate">Reorder Date:</label>
+                    <input type="date" id="editReorderDate" name="reorder_date" required>
+                </div>
+                <div class="form-group">
+                    <label for="editReorderTime">Reorder Time:</label>
+                    <input type="time" id="editReorderTime" name="reorder_time" required>
                 </div>
                 <div class="form-group">
                     <label for="editStatus">Status:</label>
@@ -238,18 +257,16 @@
 
 <script>
 // Global modal functions
-function openEditOrderModal(id, item, uoi, quantity, status) {
-    // Update form fields
+function openEditOrderModal(id, item, uoi, quantity, reorderDate, reorderTime, status) {
     document.getElementById('editOrderId').value = id;
     document.getElementById('editItem').value = item;
     document.getElementById('editUoi').value = uoi;
     document.getElementById('editQuantity').value = quantity;
+    document.getElementById('editReorderDate').value = reorderDate;
+    document.getElementById('editReorderTime').value = reorderTime;
     document.getElementById('editStatus').value = status;
 
-    // Update form action
     document.getElementById('editOrderForm').action = `/edit_orders_request/${id}`;
-
-    // Show modal
     document.getElementById('editOrderModal').style.display = 'block';
 }
 
