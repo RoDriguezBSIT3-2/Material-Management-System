@@ -60,7 +60,7 @@
                 <td>{{ item['quantity']|int }}</td>
                 <td>{{ item['description'] | replace('_', ' ') | title }}</td>
                 <td>
-                    <button type="button" class="edit" aria-label="Edit" onclick="openEditModal({{ item['id'] }}, '{{ item['item'] }}', '{{ item['uoi'] }}', {{ item['quantity']|int }}, '{{ item['description'] }}', '{{ item['image_url'] }}')">
+                    <button type="button" class="edit" aria-label="Edit" onclick="openEditWasteModal({{ item['id'] }}, '{{ item['item'] }}', '{{ item['uoi'] }}', {{ item['quantity']|int }}, '{{ item['description'] }}')">
                         <i class="fas fa-edit"></i>
                     </button>
                     <form action="{{ url_for('delete_waste', item_id=item['id']) }}" method="POST" style="display:inline;">
@@ -73,7 +73,7 @@
             {% endfor %}
         {% else %}
             <tr>
-                <td colspan="5">No items match your search.</td>
+                <td colspan="6">No items match your search.</td>
             </tr>
         {% endif %}
     </tbody>
@@ -260,6 +260,30 @@
 </style>
 
 <script>
+function openEditWasteModal(id, item, uoi, quantity, description) {
+    var editWasteModal = document.getElementById("editWasteModal");
+    if (!editWasteModal) {
+        console.error("Edit modal not found!");
+        return;
+    }
+
+    editWasteModal.style.display = "block";
+    var form = document.getElementById("editWasteForm");
+    form.action = "/edit_waste/" + id;
+
+    document.getElementById("editItem").value = item;
+    document.getElementById("editUoi").value = uoi;
+    document.getElementById("editQuantity").value = quantity;
+
+    var descriptionSelect = document.getElementById("editDescription");
+    for (var i = 0; i < descriptionSelect.options.length; i++) {
+        if (descriptionSelect.options[i].value === description) {
+            descriptionSelect.selectedIndex = i;
+            break;
+        }
+    }
+}
+
     document.addEventListener("DOMContentLoaded", function () {
         var addWasteModal = document.getElementById("addWasteModal");
         var openAddWasteModalButton = document.getElementById("openModalButton");
@@ -326,23 +350,6 @@
         var editWasteModal = document.getElementById("editWasteModal");
         var closeEditWasteModalButton = document.getElementsByClassName("close-button")[1];
         var cancelEditWasteButton = document.getElementById("closeEditModalButton");
-
-        function openEditWasteModal(id, item, uoi, quantity, description) {
-            editWasteModal.style.display = "block";
-            var form = document.getElementById("editWasteForm");
-            form.action = "/edit_waste/" + id;
-            document.getElementById("editItem").value = item;
-            document.getElementById("editUoi").value = uoi;
-            document.getElementById("editQuantity").value = quantity;
-
-            var descriptionSelect = document.getElementById("editDescription");
-            for (var i = 0; i < descriptionSelect.options.length; i++) {
-                if (descriptionSelect.options[i].value === description) {
-                    descriptionSelect.selectedIndex = i;
-                    break;
-                }
-            }
-        }
 
         closeEditWasteModalButton.addEventListener("click", function() {
             editWasteModal.style.display = "none";
