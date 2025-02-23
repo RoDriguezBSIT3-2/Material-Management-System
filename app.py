@@ -232,7 +232,7 @@ def inventory():
 
     # Fetch external orders
     try:
-        response = requests.get('https://hospitality-pos1.onrender.com')
+        response = requests.get('https://hospitality-pos1.onrender.com/get_orders')
         if response.status_code == 200:
             orders_data = response.json()
             orders = orders_data.get('orders', []) if orders_data.get('success') else []
