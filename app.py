@@ -66,7 +66,7 @@ class MaterialTransactions(db.Model):
     transaction_type = db.Column(db.String(20), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=False)
-
+    
 
 class Orders(db.Model):
     __tablename__ = 'orders'
@@ -76,9 +76,12 @@ class Orders(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(100), nullable=False)
     date = db.Column(db.String(20), nullable=False, default=datetime.now().strftime('%d %B %Y'))
+    reorder_date = db.Column(db.String(20), nullable=False)
+    reorder_time = db.Column(db.String(10), nullable=False)
+    processed = db.Column(db.Boolean, default=False)
 
     def __repr__(self):
-        return f'<Order {self.id} - {self.item}>'
+        return f'<Order {self.id} - {self.item} (Reorder: {self.reorder_date} {self.reorder_time})>'
 
 
 # Define PurchaseRecord model
