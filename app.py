@@ -889,6 +889,24 @@ def orders_request():
 
     date_today = datetime.now().strftime('%d %B %Y')
 
+    for order in filtered_orders:
+        if order.status.lower() == "received" and not order.processed:
+            inventory_item = Inventory.query.filter(func.lower(Inventory.item) == order.item.lower()).first()
+
+            if inventory_item:
+                # Add the received quantity to inventory incoming
+                inventory_item.incoming += order.quantity
+
+                # Recalculate ending stock
+                inventory_item.ending = (
+                        inventory_item.beginning + inventory_item.incoming
+                        - inventory_item.outgoing - inventory_item.waste
+                )
+
+                # Mark order as processed to prevent duplicate additions
+                order.processed = True
+                db.session.commit()  # Save changes to the database
+
     return render_template('orders_request.html', orders=filtered_orders, date_today=date_today)
 
 
@@ -899,6 +917,8 @@ def add_orders_request():
         uoi = request.form['uoi']
         quantity = int(request.form['quantity'])
         status = request.form['status']
+        reorder_date = request.form['reorder_date']
+        reorder_time = request.form['reorder_time']
 
         # Check if item already exists in the database
         existing_order = Orders.query.filter(func.lower(Orders.item) == item).first()
@@ -911,7 +931,9 @@ def add_orders_request():
             uoi=uoi,
             quantity=quantity,
             status=status,
-            date=datetime.now().strftime('%d %B %Y')
+            date=datetime.now().strftime('%d %B %Y'),
+            reorder_date=reorder_date,
+            reorder_time=reorder_time
         )
 
         db.session.add(new_order)
@@ -929,6 +951,8 @@ def edit_orders_request(order_id):
         order.uoi = request.form['uoi']
         order.quantity = int(request.form['quantity'])
         order.status = request.form['status']
+        order.reorder_date = request.form['reorder_date']
+        order.reorder_time = request.form['reorder_time']
 
         db.session.commit()
 
@@ -940,7 +964,9 @@ def edit_orders_request(order_id):
         'uoi': order.uoi,
         'quantity': order.quantity,
         'status': order.status,
-        'date': order.date
+        'date': order.date,
+        'reorder_date': order.reorder_date,
+        'reorder_time': order.reorder_time
     })
 
 
