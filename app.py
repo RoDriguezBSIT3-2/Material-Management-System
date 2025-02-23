@@ -252,7 +252,7 @@ def inventory():
 
         for item in order.get('items', []):
             ingredients_text = item.get('ingredients', '')
-            quantity = item.get('quantity', 1)  # Get item quantity
+            quantity = item.get('quantity', 1)
 
             if not ingredients_text:
                 continue
@@ -262,7 +262,7 @@ def inventory():
             for match in matches:
                 base_quantity = int(match[0])
                 ingredient = match[1].strip()
-                adjusted_quantity = base_quantity * quantity  # Adjust quantity based on order quantity
+                adjusted_quantity = base_quantity * quantity
 
                 if f"{order_id}-{ingredient}" in processed_orders:
                     continue
@@ -340,7 +340,9 @@ def inventory():
                 uoi=item.uoi,
                 quantity=reorder_quantity,
                 status='pending',
-                date=datetime.now().strftime('%d %B %Y')
+                date=datetime.now().strftime('%d %B %Y'),
+                reorder_date=datetime.now().strftime('%Y-%m-%d'),
+                reorder_time=datetime.now().strftime('%H:%M')
             ))
 
         alerts.append({
@@ -355,7 +357,6 @@ def inventory():
     date_today = datetime.now().strftime('%d %B %Y')
 
     return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today, alerts=alerts)
-
 
 @app.route('/view_inventory', methods=['GET'])
 def view_inventory():
