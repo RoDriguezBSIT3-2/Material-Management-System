@@ -1,22 +1,20 @@
-from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-import os
-from sqlite3 import IntegrityError
+import json
 import re
-from sqlalchemy import func
-from flask import send_from_directory
+from datetime import datetime
+from sqlite3 import IntegrityError
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import requests
+from sqlalchemy import func
 
 app = Flask(__name__)
 # Configure PostgreSQL Database
 app.config[
-    'SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgresql_26_user:dCa7VhcufLnirkOXVDoqR2EUGJghI7du@dpg-cutab0rqf0us739t6jq0-a.oregon-postgres.render.com/postgresql_26'
+    'SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://postgres:984832rodriguez@localhost:5432/Inventory'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database connection
 db = SQLAlchemy(app)
-
 
 
 # Define Inventory model
@@ -66,7 +64,7 @@ class MaterialTransactions(db.Model):
     transaction_type = db.Column(db.String(20), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=False)
-    
+
 
 class Orders(db.Model):
     __tablename__ = 'orders'
@@ -75,13 +73,21 @@ class Orders(db.Model):
     uoi = db.Column(db.String(50), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.String(20), nullable=False, default=datetime.now().strftime('%d %B %Y'))
-    reorder_date = db.Column(db.String(20), nullable=False)
-    reorder_time = db.Column(db.String(10), nullable=False)
+    reorder_history = db.Column(db.Text, nullable=True, default="[]")  # Stores status history as JSON
     processed = db.Column(db.Boolean, default=False)
+    reorder_date = db.Column(db.String(20), nullable=True)
+    reorder_time = db.Column(db.String(10), nullable=True)
+    date = db.Column(db.String(20), nullable=False, default=datetime.now().strftime('%d %B %Y'))
 
-    def __repr__(self):
-        return f'<Order {self.id} - {self.item} (Reorder: {self.reorder_date} {self.reorder_time})>'
+    def add_status(self, new_status):
+        """Append new status with date/time to the history"""
+        history = json.loads(self.reorder_history) if self.reorder_history else []
+        history.append({
+            "status": new_status,
+            "date": datetime.now().strftime('%Y-%m-%d'),
+            "time": datetime.now().strftime('%H:%M')
+        })
+        self.reorder_history = json.dumps(history)
 
 
 # Define PurchaseRecord model
@@ -358,6 +364,7 @@ def inventory():
 
     return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today, alerts=alerts)
 
+
 @app.route('/view_inventory', methods=['GET'])
 def view_inventory():
     # Get the date from query parameters
@@ -482,6 +489,7 @@ def inventory_transactions():
                            transactions=filtered_transactions,
                            date_today=date_today)
 
+
 @app.route('/validate_waste', methods=['POST'])
 def validate_waste():
     data = request.get_json()
@@ -493,6 +501,7 @@ def validate_waste():
     exists = WasteLog.query.filter(WasteLog.item.ilike(f'%{item_name}%')).first() is not None
 
     return jsonify({"exists": exists})
+
 
 @app.route('/get_waste_log', methods=['GET', 'POST'])
 def get_waste_log():
@@ -766,6 +775,7 @@ def delete_material(item_id):
     db.session.commit()
     return redirect(url_for('material'))
 
+
 @app.route("/validate_material_waste", methods=["POST"])
 def validate_material_waste():
     data = request.get_json()
@@ -777,6 +787,7 @@ def validate_material_waste():
     exists = MaterialLog.query.filter(MaterialLog.item.ilike(f'%{item_name}%')).first() is not None
 
     return jsonify({"exists": exists})
+
 
 @app.route('/get_material_log', methods=['GET', 'POST'])
 def get_material_log():
@@ -942,19 +953,43 @@ def add_orders_request():
         return redirect(url_for('orders_request'))
 
 
+@app.route('/get_order_history/<int:order_id>', methods=['GET'])
+def get_order_history(order_id):
+    order = Orders.query.get_or_404(order_id)
+    history = json.loads(order.reorder_history) if order.reorder_history else []
+
+    return jsonify({
+        "current_status": order.status,
+        "history": history
+    })
+
+
 @app.route('/edit_orders_request/<int:order_id>', methods=['GET', 'POST'])
 def edit_orders_request(order_id):
     order = Orders.query.get_or_404(order_id)
 
     if request.method == 'POST':
+        new_status = request.form['status']
+
+        # Ensure valid status progression
+        if order.status == "Preparing" and new_status not in ["Incomplete", "Received"]:
+            return jsonify({"error": "Invalid status transition"}), 400
+
+        if order.status == "Incomplete" and new_status != "Received":
+            return jsonify({"error": "Incomplete orders can only proceed to Received"}), 400
+        order.add_status(new_status)
         order.item = request.form['item']
         order.uoi = request.form['uoi']
         order.quantity = int(request.form['quantity'])
-        order.status = request.form['status']
+        order.status = new_status
         order.reorder_date = request.form['reorder_date']
         order.reorder_time = request.form['reorder_time']
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
 
         return redirect(url_for('orders_request'))
 
@@ -964,7 +999,6 @@ def edit_orders_request(order_id):
         'uoi': order.uoi,
         'quantity': order.quantity,
         'status': order.status,
-        'date': order.date,
         'reorder_date': order.reorder_date,
         'reorder_time': order.reorder_time
     })
@@ -977,6 +1011,7 @@ def delete_orders_request(order_id):
     db.session.commit()
     return redirect(url_for('orders_request'))
 
+
 @app.route('/validate_purchase', methods=['POST'])
 def validate_purchase():
     data = request.get_json()
@@ -988,6 +1023,7 @@ def validate_purchase():
     exists = PurchaseRecord.query.filter(PurchaseRecord.item.ilike(f'%{item_name}%')).first() is not None
 
     return jsonify({"exists": exists})
+
 
 @app.route('/purchase_records')
 def purchase_records():
