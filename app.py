@@ -236,19 +236,22 @@ def inventory():
     else:
         filtered_inventory = Inventory.query.all()
 
-    # Fetch external orders
+    # Fetch external orders with improved error handling
+    orders = []
     try:
-        response = requests.get('https://hospitality-pos1.onrender.com/get_orders')
+        # Set a timeout to prevent hanging if the API is down
+        response = requests.get('https://hospitality-pos1.onrender.com/get_orders', timeout=5)
         if response.status_code == 200:
             orders_data = response.json()
             orders = orders_data.get('orders', []) if orders_data.get('success') else []
-        else:
-            orders = []
+    except requests.exceptions.RequestException as e:
+        # Log specific request exception for better debugging
+        print(f"API connection error: {e}")
     except Exception as e:
-        print(f"Error fetching orders: {e}")
-        orders = []
+        # Catch any other exceptions that might occur
+        print(f"Error processing orders data: {e}")
 
-    # Fetch processed orders
+    # Continue with the rest of the function regardless of API status
     processed_orders = {f"{po.order_id}-{po.item}" for po in ProcessedOrder.query.all()}
     existing_transactions = {(t.item, t.transaction_type, t.date): t for t in Transactions.query.all()}
 
@@ -300,68 +303,79 @@ def inventory():
                         db.session.rollback()
                         print(f"Duplicate entry detected for {order_id} - {ingredient}, skipping insert.")
 
-    for inventory_item in filtered_inventory:
-        for tx_type in ['incoming', 'waste', 'outgoing']:
-            quantity = getattr(inventory_item, tx_type, 0)
-            if quantity > 0:
-                existing_transaction = Transactions.query.filter_by(
-                    item=inventory_item.item,
-                    uoi=inventory_item.uoi,
-                    transaction_type=tx_type,
-                    date=datetime.now().strftime('%Y-%m-%d'),
-                    quantity=quantity,
-                    stock=inventory_item.ending
-                ).first()
-
-                if not existing_transaction:
-                    transaction = Transactions(
+    # Add transactions for inventory items
+    try:
+        for inventory_item in filtered_inventory:
+            for tx_type in ['incoming', 'waste', 'outgoing']:
+                quantity = getattr(inventory_item, tx_type, 0)
+                if quantity > 0:
+                    existing_transaction = Transactions.query.filter_by(
                         item=inventory_item.item,
                         uoi=inventory_item.uoi,
-                        date=datetime.now().strftime('%Y-%m-%d'),
-                        time=datetime.now().strftime('%H:%M:%S'),
                         transaction_type=tx_type,
+                        date=datetime.now().strftime('%Y-%m-%d'),
                         quantity=quantity,
                         stock=inventory_item.ending
-                    )
-                    db.session.add(transaction)
+                    ).first()
 
-    db.session.commit()
+                    if not existing_transaction:
+                        transaction = Transactions(
+                            item=inventory_item.item,
+                            uoi=inventory_item.uoi,
+                            date=datetime.now().strftime('%Y-%m-%d'),
+                            time=datetime.now().strftime('%H:%M:%S'),
+                            transaction_type=tx_type,
+                            quantity=quantity,
+                            stock=inventory_item.ending
+                        )
+                        db.session.add(transaction)
 
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating transactions: {e}")
+
+    # Check for low stock and create orders
     stock_threshold = 10
     low_stock_items = [item for item in filtered_inventory if item.ending <= stock_threshold]
 
     new_orders = []
     alerts = []
-    for item in low_stock_items:
-        reorder_quantity = max(0, item.beginning - item.ending)
+    try:
+        for item in low_stock_items:
+            reorder_quantity = max(0, item.beginning - item.ending)
 
-        existing_order = Orders.query.filter(
-            func.lower(Orders.item) == item.item.lower(),
-            Orders.status == 'pending'
-        ).first()
+            existing_order = Orders.query.filter(
+                func.lower(Orders.item) == item.item.lower(),
+                Orders.status == 'pending'
+            ).first()
 
-        if not existing_order and reorder_quantity > 0:
-            new_orders.append(Orders(
-                item=item.item,
-                uoi=item.uoi,
-                quantity=reorder_quantity,
-                status='pending',
-                date=datetime.now().strftime('%d %B %Y'),
-                reorder_date=datetime.now().strftime('%Y-%m-%d'),
-                reorder_time=datetime.now().strftime('%H:%M')
-            ))
+            if not existing_order and reorder_quantity > 0:
+                new_orders.append(Orders(
+                    item=item.item,
+                    uoi=item.uoi,
+                    quantity=reorder_quantity,
+                    status='pending',
+                    date=datetime.now().strftime('%d %B %Y'),
+                    reorder_date=datetime.now().strftime('%Y-%m-%d'),
+                    reorder_time=datetime.now().strftime('%H:%M')
+                ))
 
-        alerts.append({
-            'item': item.item,
-            'current_stock': item.ending
-        })
+            alerts.append({
+                'item': item.item,
+                'current_stock': item.ending
+            })
 
-    if new_orders:
-        db.session.add_all(new_orders)
-        db.session.commit()
+        if new_orders:
+            db.session.add_all(new_orders)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error processing low stock items: {e}")
 
     date_today = datetime.now().strftime('%d %B %Y')
 
+    # Always return the template, even if there were errors
     return render_template('inventory.html', inventory=filtered_inventory, date_today=date_today, alerts=alerts)
 
 
