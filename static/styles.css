@@ -251,7 +251,7 @@ body, html {
 .inventory-table td:nth-child(5),
 .inventory-table td:nth-child(6),
 .inventory-table td:nth-child(7) {
-    text-align: right; /* Align numerical values to the right */
+    text-align: center; 
 }
 
 .inventory-table td:last-child {
