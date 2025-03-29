@@ -10,7 +10,7 @@ from sqlalchemy import func
 app = Flask(__name__)
 # Configure PostgreSQL Database
 app.config[
-    'SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://postgres:984832rodriguez@localhost:5432/Inventory'
+    'SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgresql_27_user:xtoSRk2t6r2xi5Go2RncwdlsosNRGlgz@dpg-cvjmb1p5pdvs739shueg-a.oregon-postgres.render.com/postgresql_27'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database connection
